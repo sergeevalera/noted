@@ -1,4 +1,4 @@
-name = "Obsidian Markdown"
+name = "Noted"
 path_suffixes = ["md", "markdown"]
 line_comments = []
 

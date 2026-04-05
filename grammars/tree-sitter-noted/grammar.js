@@ -2,7 +2,7 @@
 // @ts-check
 
 /**
- * Tree-sitter grammar for Obsidian-flavored Markdown.
+ * Tree-sitter grammar for Noted — extended Markdown with knowledge-base features.
  *
  * Adds to standard Markdown:
  *   - Wikilinks:  [[target]]  [[target|alias]]
@@ -11,7 +11,7 @@
  *   - Callouts:   > [!type] title
  */
 module.exports = grammar({
-  name: "obsidian_md",
+  name: "noted",
 
   // No implicit whitespace skipping — newlines are significant in Markdown
   extras: (_) => [],

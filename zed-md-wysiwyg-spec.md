@@ -531,7 +531,7 @@ In addition to semantic token rules, the theme defines styles for Tree-sitter ca
     "punctuation.delimiter": { "color": "#444444" },
     "punctuation.special": { "color": "#444444" },
 
-    // Custom captures from obsidian-md grammar
+    // Custom captures from noted grammar
     "markup.wikilink": { "color": "#6CB6FF" },
     "markup.tag": { "color": "#C586C0" },
     "markup.callout": { "color": "#4EC9B0", "font_style": "italic" },
@@ -595,14 +595,14 @@ noted/
 ├── src/
 │   └── lib.rs                  # Extension entry point
 ├── languages/
-│   └── obsidian-md/
+│   └── noted/
 │       ├── config.toml         # Language config
 │       ├── highlights.scm      # Syntax highlighting queries
 │       ├── injections.scm      # Code block injection queries
 │       ├── outline.scm         # Outline/symbols queries
 │       └── folds.scm           # Folding queries
 ├── grammars/
-│   └── tree-sitter-obsidian-md/  # Custom Tree-sitter grammar
+│   └── tree-sitter-noted/  # Custom Tree-sitter grammar
 │       ├── grammar.js
 │       └── src/
 ├── lsp/                        # Language Server (separate binary)
@@ -786,7 +786,7 @@ and responds correctly to stdin JSON-RPC `initialize` request.
   For dev use an absolute path to `target/release/noted-lsp`
   (user will substitute their own path).
 - Add a `[languages.markdown]` section to `extension.toml` or a separate
-  `languages/obsidian-md/config.toml` with `.md` file binding.
+  `languages/noted/config.toml` with `.md` file binding.
 
 Make sure extension.toml contains:
 ```toml
@@ -868,7 +868,7 @@ This result determines the viability of Strategy B.
 
 #### 1.1. Tree-sitter Grammar
 
-**1.1.1.** `[AGENT]` Create directory `grammars/tree-sitter-obsidian-md/`.
+**1.1.1.** `[AGENT]` Create directory `grammars/tree-sitter-noted/`.
 Write `grammar.js` based on tree-sitter-markdown, adding rules for:
 - Wikilinks: `[[page]]` and `[[page|alias]]` — new node type `wikilink`
   with children `wikilink_target` and optional `wikilink_alias`
@@ -882,28 +882,28 @@ Write tests in `test/corpus/` for each new node type.
 `tree-sitter parse test-file.md` — wikilinks, embeds, tags, callouts are recognized.
 
 **1.1.2.** `[AGENT]` Write Tree-sitter query files for Zed:
-- `languages/obsidian-md/highlights.scm`:
+- `languages/noted/highlights.scm`:
   Captures for wikilinks (`@markup.link`), embeds (`@markup.link`),
   tags (`@label`), callout type (`@keyword`), callout body (`@comment`),
   heading markers `#` (`@punctuation.special`).
   Use fallback captures: `@markup.link @string` for themes without `@markup.link`.
-- `languages/obsidian-md/folds.scm`:
+- `languages/noted/folds.scm`:
   Folding for: heading sections, callout blocks, fenced code blocks, frontmatter.
-- `languages/obsidian-md/outline.scm`:
+- `languages/noted/outline.scm`:
   Captures for heading nodes → Zed Outline panel.
-- `languages/obsidian-md/injections.scm`:
+- `languages/noted/injections.scm`:
   Injection for fenced code blocks (```lang → inject tree-sitter-lang).
 
 `[VERIFY]` Files are syntactically correct for tree-sitter query parser.
 
 **1.1.3.** `[AGENT]` Integrate grammar into extension:
-- Update `extension.toml`: add `[grammars.obsidian-md]` with path to grammar.
-- Update `languages/obsidian-md/config.toml`: `grammar = "obsidian-md"`,
+- Update `extension.toml`: add `[grammars.noted]` with path to grammar.
+- Update `languages/noted/config.toml`: `grammar = "noted"`,
   `path_suffixes = ["md", "markdown"]`.
 - Make sure the root `Cargo.toml` doesn't conflict with the grammar.
 
 `[VERIFY]` Reinstall dev extension → open .md → Status bar shows
-"Obsidian Markdown" as language. Wikilinks and callouts are highlighted differently from plain text.
+"Noted" as language. Wikilinks and callouts are highlighted differently from plain text.
 
 #### 1.2. Vault Indexer
 

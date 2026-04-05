@@ -119,13 +119,13 @@ noted/
 ├── src/lib.rs                        # Zed extension (WASM) — locates and launches LSP
 ├── extension.toml                    # Extension manifest
 ├── Cargo.toml                        # Workspace root + extension crate
-├── languages/obsidian-md/            # Language definition for Zed
+├── languages/noted/            # Language definition for Zed
 │   ├── config.toml                   # File types, bracket pairs
 │   ├── highlights.scm                # Tree-sitter highlight queries (inactive until grammar compiled)
 │   ├── injections.scm                # Fenced code block language injection
 │   ├── outline.scm                   # Outline panel node queries
 │   └── folds.scm                     # Code folding queries
-├── grammars/tree-sitter-obsidian-md/ # Custom Tree-sitter grammar
+├── grammars/tree-sitter-noted/ # Custom Tree-sitter grammar
 │   ├── grammar.js                    # Grammar rules (wikilinks, callouts, tags, …)
 │   ├── src/                          # MISSING — run: tree-sitter generate
 │   └── test/corpus/                  # Grammar test cases
@@ -171,7 +171,7 @@ To activate it:
 cargo install tree-sitter-cli
 # or: npm install -g tree-sitter-cli
 
-cd grammars/tree-sitter-obsidian-md
+cd grammars/tree-sitter-noted
 
 # Generate C parser
 tree-sitter generate
@@ -181,8 +181,8 @@ tree-sitter test
 ```
 
 After generating:
-1. Restore `grammar = "obsidian-md"` in `languages/obsidian-md/config.toml`
-2. Restore the `[grammars.obsidian-md]` block in `extension.toml`
+1. Restore `grammar = "noted"` in `languages/noted/config.toml`
+2. Restore the `[grammars.noted]` block in `extension.toml`
 3. Commit the generated `src/parser.c` and `src/tree_sitter/parser.h`
 
 ---
