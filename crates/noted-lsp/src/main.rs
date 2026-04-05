@@ -247,9 +247,10 @@ impl LanguageServer for NotedLsp {
             None => return Ok(None),
         };
         drop(documents);
+        let index = self.index.read().await;
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
-            data: compute_semantic_tokens(&text),
+            data: compute_semantic_tokens(&text, &index),
         })))
     }
 
