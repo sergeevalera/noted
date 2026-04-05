@@ -1,172 +1,124 @@
+mod completion;
+mod definition;
+mod diagnostics;
+mod hover;
+mod inlay_hints;
+mod semantic_tokens;
+mod symbols;
+mod vault;
+
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
-use regex::Regex;
+use camino::Utf8PathBuf;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-// Token type indices (must match the legend order)
-const TYPE_HEADING: u32 = 0;
-const TYPE_MARKUP: u32 = 1;
-const TYPE_PUNCTUATION: u32 = 2;
-
-// Token modifier bits (1 << index in legend)
-const MOD_H1: u32 = 1 << 0;
-const MOD_H2: u32 = 1 << 1;
-const MOD_H3: u32 = 1 << 2;
-const MOD_BOLD: u32 = 1 << 3;
-const MOD_ITALIC: u32 = 1 << 4;
+use completion::compute_completions;
+use definition::find_definition;
+use diagnostics::compute_diagnostics;
+use hover::compute_hover;
+use inlay_hints::compute_inlay_hints;
+use semantic_tokens::compute_semantic_tokens;
+use symbols::compute_document_symbols;
+use vault::{build_index, parse_note, scan_vault, VaultIndex};
 
 struct NotedLsp {
     client: Client,
     documents: Arc<RwLock<HashMap<Url, String>>>,
+    index: Arc<RwLock<VaultIndex>>,
+    vault_root: Arc<RwLock<Option<Utf8PathBuf>>>,
 }
 
 impl NotedLsp {
-    async fn publish_connected_diagnostic(&self, uri: Url) {
-        let diagnostic = Diagnostic {
-            range: Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 0, character: 0 },
-            },
-            severity: Some(DiagnosticSeverity::INFORMATION),
-            message: "noted-lsp is connected and working".to_string(),
-            ..Default::default()
-        };
-        self.client
-            .publish_diagnostics(uri, vec![diagnostic], None)
+    /// Publish broken-link diagnostics for a single document.
+    async fn publish_diagnostics_for(&self, uri: Url, text: &str) {
+        let index = self.index.read().await;
+        let diags = compute_diagnostics(text, &index);
+        drop(index);
+        self.client.publish_diagnostics(uri, diags, None).await;
+    }
+
+    /// Scan and index the vault, then republish diagnostics for all open documents.
+    async fn reindex_and_republish(
+        root: Utf8PathBuf,
+        index: Arc<RwLock<VaultIndex>>,
+        documents: Arc<RwLock<HashMap<Url, String>>>,
+        client: Client,
+    ) {
+        let t0 = Instant::now();
+        let paths = scan_vault(&root);
+        let notes = paths
+            .iter()
+            .filter_map(|p| std::fs::read_to_string(p).ok().map(|c| parse_note(p, &c)))
+            .collect();
+        let vault_index = build_index(notes);
+        let n = vault_index.notes.len();
+        *index.write().await = vault_index;
+        tracing::info!(
+            "Vault indexed: {} notes in {:.1}ms",
+            n,
+            t0.elapsed().as_secs_f64() * 1000.0
+        );
+        client
+            .log_message(MessageType::INFO, format!("Vault indexed: {} notes", n))
             .await;
-    }
-}
 
-/// Compute semantic tokens for the given text.
-/// Returns tokens sorted and encoded in the LSP delta format.
-fn compute_semantic_tokens(text: &str) -> Vec<SemanticToken> {
-    let bold_re = Regex::new(r"\*\*(.+?)\*\*").unwrap();
-    let italic_re = Regex::new(r"\*([^*\n]+?)\*").unwrap();
-
-    // Collect raw tokens as (line, start_char, length, type, modifiers)
-    let mut raw: Vec<(u32, u32, u32, u32, u32)> = Vec::new();
-
-    for (line_idx, line) in text.lines().enumerate() {
-        let ln = line_idx as u32;
-
-        // Headings — handle before inline markup
-        if line.starts_with("### ") {
-            raw.push((ln, 0, 3, TYPE_PUNCTUATION, 0));
-            let len = line.len().saturating_sub(4) as u32;
-            if len > 0 {
-                raw.push((ln, 4, len, TYPE_HEADING, MOD_H3));
-            }
-            continue;
-        } else if line.starts_with("## ") {
-            raw.push((ln, 0, 2, TYPE_PUNCTUATION, 0));
-            let len = line.len().saturating_sub(3) as u32;
-            if len > 0 {
-                raw.push((ln, 3, len, TYPE_HEADING, MOD_H2));
-            }
-            continue;
-        } else if line.starts_with("# ") {
-            raw.push((ln, 0, 1, TYPE_PUNCTUATION, 0));
-            let len = line.len().saturating_sub(2) as u32;
-            if len > 0 {
-                raw.push((ln, 2, len, TYPE_HEADING, MOD_H1));
-            }
-            continue;
-        }
-
-        // Track covered byte ranges to avoid italic matching inside bold
-        let mut covered = vec![false; line.len()];
-
-        // Bold: **content**
-        for cap in bold_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            let content = cap.get(1).unwrap();
-            for i in full.start()..full.end() {
-                covered[i] = true;
-            }
-            raw.push((ln, full.start() as u32, 2, TYPE_PUNCTUATION, 0));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_BOLD));
-            raw.push((ln, content.end() as u32, 2, TYPE_PUNCTUATION, 0));
-        }
-
-        // Italic: *content* (skip positions already covered by bold)
-        for cap in italic_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            raw.push((ln, full.start() as u32, 1, TYPE_PUNCTUATION, 0));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_ITALIC));
-            raw.push((ln, content.end() as u32, 1, TYPE_PUNCTUATION, 0));
+        // Republish diagnostics for every currently-open document
+        let docs = documents.read().await;
+        let idx = index.read().await;
+        for (uri, text) in docs.iter() {
+            let diags = compute_diagnostics(text, &idx);
+            client.publish_diagnostics(uri.clone(), diags, None).await;
         }
     }
-
-    // Sort by line then by start position
-    raw.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-
-    // Encode as LSP delta format
-    let mut tokens = Vec::with_capacity(raw.len());
-    let mut prev_line = 0u32;
-    let mut prev_start = 0u32;
-
-    for (line, start, length, token_type, modifiers) in raw {
-        let delta_line = line - prev_line;
-        let delta_start = if delta_line == 0 { start - prev_start } else { start };
-        tokens.push(SemanticToken {
-            delta_line,
-            delta_start,
-            length,
-            token_type,
-            token_modifiers_bitset: modifiers,
-        });
-        prev_line = line;
-        prev_start = start;
-    }
-
-    tokens
-}
-
-/// Returns the character position after `]` if the line contains a checkbox.
-/// `done = true`  → looks for `- [x]`
-/// `done = false` → looks for `- [ ]`
-fn checkbox_hint_col(line: &str, done: bool) -> Option<u32> {
-    let pattern = if done { "- [x]" } else { "- [ ]" };
-    let byte_pos = line.find(pattern)?;
-    // position after the closing `]`
-    let char_pos = (byte_pos + pattern.len()) as u32;
-    Some(char_pos)
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for NotedLsp {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let root = params
+            .root_uri
+            .as_ref()
+            .and_then(|uri| uri.to_file_path().ok())
+            .and_then(|p| Utf8PathBuf::from_path_buf(p).ok());
+
+        if let Some(root) = root {
+            *self.vault_root.write().await = Some(root.clone());
+            let index = self.index.clone();
+            let documents = self.documents.clone();
+            let client = self.client.clone();
+            tokio::spawn(async move {
+                Self::reindex_and_republish(root, index, documents, client).await;
+            });
+        }
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                hover_provider: Some(HoverProviderCapability::Simple(true)),
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                            include_text: Some(false),
+                        })),
+                        ..Default::default()
+                    },
                 )),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec!["[".to_string()]),
+                    ..Default::default()
+                }),
+                definition_provider: Some(OneOf::Left(true)),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
-                            legend: SemanticTokensLegend {
-                                token_types: vec![
-                                    SemanticTokenType::new("heading"),
-                                    SemanticTokenType::new("markup"),
-                                    SemanticTokenType::new("punctuation"),
-                                ],
-                                token_modifiers: vec![
-                                    SemanticTokenModifier::new("h1"),
-                                    SemanticTokenModifier::new("h2"),
-                                    SemanticTokenModifier::new("h3"),
-                                    SemanticTokenModifier::new("bold"),
-                                    SemanticTokenModifier::new("italic"),
-                                ],
-                            },
+                            legend: semantic_tokens::legend(),
                             full: Some(SemanticTokensFullOptions::Bool(true)),
                             range: None,
                             work_done_progress_options: Default::default(),
@@ -181,10 +133,8 @@ impl LanguageServer for NotedLsp {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        tracing::info!("noted-lsp started successfully");
-        self.client
-            .log_message(MessageType::INFO, "noted-lsp started successfully")
-            .await;
+        tracing::info!("noted-lsp started");
+        self.client.log_message(MessageType::INFO, "noted-lsp started").await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -193,19 +143,31 @@ impl LanguageServer for NotedLsp {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri.clone();
-        self.documents
-            .write()
-            .await
-            .insert(uri.clone(), params.text_document.text);
-        self.publish_connected_diagnostic(uri).await;
+        let text = params.text_document.text.clone();
+        self.documents.write().await.insert(uri.clone(), text.clone());
+        self.publish_diagnostics_for(uri, &text).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri.clone();
         if let Some(change) = params.content_changes.into_iter().last() {
-            self.documents.write().await.insert(uri.clone(), change.text);
+            let text = change.text.clone();
+            self.documents.write().await.insert(uri.clone(), text.clone());
+            self.publish_diagnostics_for(uri, &text).await;
         }
-        self.publish_connected_diagnostic(uri).await;
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let root = self.vault_root.read().await.clone();
+        let Some(root) = root else { return };
+        let index = self.index.clone();
+        let documents = self.documents.clone();
+        let client = self.client.clone();
+        let uri = params.text_document.uri.clone();
+        tokio::spawn(async move {
+            tracing::info!("Reindexing after save: {}", uri);
+            Self::reindex_and_republish(root, index, documents, client).await;
+        });
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -213,6 +175,66 @@ impl LanguageServer for NotedLsp {
         self.client
             .publish_diagnostics(params.text_document.uri, vec![], None)
             .await;
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let documents = self.documents.read().await;
+        let text = match documents.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let line_text = text.lines().nth(position.line as usize).unwrap_or("");
+        let index = self.index.read().await;
+        Ok(compute_hover(line_text, position.character, &index))
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let documents = self.documents.read().await;
+        let text = match documents.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let line_text = text.lines().nth(position.line as usize).unwrap_or("");
+        let index = self.index.read().await;
+        let items = compute_completions(position.line, line_text, position.character, &index);
+        if items.is_empty() { Ok(None) } else { Ok(Some(CompletionResponse::Array(items))) }
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let documents = self.documents.read().await;
+        let text = match documents.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let line_text = text.lines().nth(position.line as usize).unwrap_or("");
+        let index = self.index.read().await;
+        Ok(find_definition(line_text, position.character, &index).map(GotoDefinitionResponse::Scalar))
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let documents = self.documents.read().await;
+        let text = match documents.get(&params.text_document.uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let syms = compute_document_symbols(&text);
+        if syms.is_empty() { Ok(None) } else { Ok(Some(DocumentSymbolResponse::Nested(syms))) }
     }
 
     async fn semantic_tokens_full(
@@ -225,11 +247,9 @@ impl LanguageServer for NotedLsp {
             None => return Ok(None),
         };
         drop(documents);
-
-        let data = compute_semantic_tokens(&text);
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
-            data,
+            data: compute_semantic_tokens(&text),
         })))
     }
 
@@ -240,46 +260,7 @@ impl LanguageServer for NotedLsp {
             None => return Ok(None),
         };
         drop(documents);
-
-        let mut hints = Vec::new();
-        for (line_idx, line) in text.lines().enumerate() {
-            let ln = line_idx as u32;
-            if let Some(col) = checkbox_hint_col(line, true) {
-                hints.push(InlayHint {
-                    position: Position { line: ln, character: col },
-                    label: InlayHintLabel::String(" ✓".to_string()),
-                    kind: Some(InlayHintKind::PARAMETER),
-                    text_edits: None,
-                    tooltip: None,
-                    padding_left: None,
-                    padding_right: None,
-                    data: None,
-                });
-            } else if let Some(col) = checkbox_hint_col(line, false) {
-                hints.push(InlayHint {
-                    position: Position { line: ln, character: col },
-                    label: InlayHintLabel::String(" ○".to_string()),
-                    kind: Some(InlayHintKind::PARAMETER),
-                    text_edits: None,
-                    tooltip: None,
-                    padding_left: None,
-                    padding_right: None,
-                    data: None,
-                });
-            }
-        }
-
-        Ok(Some(hints))
-    }
-
-    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
-        Ok(Some(Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: "Hello from noted LSP!".to_string(),
-            }),
-            range: None,
-        }))
+        Ok(Some(compute_inlay_hints(&text)))
     }
 }
 
@@ -296,6 +277,8 @@ async fn main() {
     let (service, socket) = LspService::new(|client| NotedLsp {
         client,
         documents: Arc::new(RwLock::new(HashMap::new())),
+        index: Arc::new(RwLock::new(VaultIndex::default())),
+        vault_root: Arc::new(RwLock::new(None)),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

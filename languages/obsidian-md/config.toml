@@ -1,0 +1,33 @@
+name = "Obsidian Markdown"
+path_suffixes = ["md", "markdown"]
+line_comments = []
+
+[[brackets]]
+start = "["
+end = "]"
+close = true
+newline = false
+
+[[brackets]]
+start = "("
+end = ")"
+close = true
+newline = false
+
+[[brackets]]
+start = "**"
+end = "**"
+close = true
+newline = false
+
+[[brackets]]
+start = "*"
+end = "*"
+close = true
+newline = false
+
+[[brackets]]
+start = "`"
+end = "`"
+close = true
+newline = false
