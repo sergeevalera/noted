@@ -1,0 +1,71 @@
+==================
+Simple tag
+==================
+
+This is tagged #rust.
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (tag)
+    (text)))
+
+==================
+Tag with hyphen
+==================
+
+Work on #project-alpha today.
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (tag)
+    (text)))
+
+==================
+Hierarchical tag
+==================
+
+Filed under #areas/work/projects.
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (tag)
+    (text)))
+
+==================
+Multiple tags
+==================
+
+Topics: #rust #async #tokio
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (tag)
+    (text)
+    (tag)
+    (text)
+    (tag)))
+
+==================
+Tag in heading is NOT a tag (heading marker takes priority)
+==================
+
+# This is a heading
+
+---
+
+(document
+  (heading
+    marker: _
+    (text)))

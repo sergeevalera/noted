@@ -1,0 +1,63 @@
+==================
+Simple wikilink
+==================
+
+See [[My Note]] for details.
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (wikilink
+      target: (wikilink_target))
+    (text)))
+
+==================
+Wikilink with alias
+==================
+
+See [[My Note|click here]] for details.
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (wikilink
+      target: (wikilink_target)
+      alias: (wikilink_alias))
+    (text)))
+
+==================
+Multiple wikilinks on one line
+==================
+
+Link to [[Alice]] and [[Bob]].
+
+---
+
+(document
+  (paragraph_line
+    (text)
+    (wikilink
+      target: (wikilink_target))
+    (text)
+    (wikilink
+      target: (wikilink_target))
+    (text)))
+
+==================
+Wikilink in heading
+==================
+
+# Note about [[Alice]]
+
+---
+
+(document
+  (heading
+    marker: _
+    (text)
+    (wikilink
+      target: (wikilink_target))))

@@ -1,0 +1,23 @@
+{
+  "name": "tree-sitter-obsidian-md",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for Obsidian-flavored Markdown",
+  "main": "bindings/node",
+  "scripts": {
+    "build": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "dependencies": {
+    "nan": "*"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.25.0"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.obsidian-md",
+      "file-types": ["md", "markdown"],
+      "highlights": "queries/highlights.scm"
+    }
+  ]
+}
