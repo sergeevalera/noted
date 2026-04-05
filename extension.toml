@@ -1,0 +1,7 @@
+id = "noted"
+name = "Noted"
+version = "0.1.0"
+schema_version = 1
+authors = ["Valery Sergeeva <valeriia.sergeeva@gmail.com>"]
+description = "Enhanced Markdown editing for knowledge bases — wikilinks, callouts, tags, and smart navigation"
+repository = "https://github.com/valerysergeeva/noted"
