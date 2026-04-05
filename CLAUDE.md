@@ -136,19 +136,16 @@ noted/
 
 ## Semantic Token Types (for LSP)
 
-Currently implemented (Phase 2 partial):
-
-**Token types:** `heading`, `markup`, `punctuation`
-
-**Token modifiers:** `h1`, `h2`, `h3`, `bold`, `italic`
-
-Full target set (Phase 2 complete) — see spec section B.1:
+Full implementation complete (Phase 2 step 2.1.1 + 2.1.2):
 
 **Token types:** `heading`, `markup`, `string`, `comment`, `punctuation`
 
 **Token modifiers:** `h1`–`h6`, `bold`, `italic`, `strikethrough`, `code`, `link`,
-`wikilink`, `broken`, `tag`, `callout`, `checkbox`, `done`, `todo`, `math`,
-`frontmatter`, `markup`
+`wikilink`, `broken`, `tag`, `callout`, `checkbox_done`, `checkbox_todo`, `math`,
+`frontmatter`, `markup_punctuation`
+
+Delta caching: per-document flat u32 token cache; unchanged files return empty delta.
+Broken wikilinks flagged with `broken` modifier only after vault index is populated.
 
 Note: semantic token visual styling is set at the **theme level** only
 (in the companion theme extension). `semantic_token_rules` in `settings.json`
@@ -168,10 +165,10 @@ is not supported by Zed.
 
 ### Phase 2 (Visual) — in progress
 
-- [x] `textDocument/semanticTokens/full` (H1–H3, bold, italic — partial)
-- [ ] `textDocument/semanticTokens/full/delta`
+- [x] `textDocument/semanticTokens/full` (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter)
+- [x] `textDocument/semanticTokens/full/delta` (prefix/suffix diff; empty delta on unchanged file)
 - [ ] `textDocument/codeAction`
-- [x] `textDocument/inlayHint` (checkboxes ✓/○ — partial)
+- [x] `textDocument/inlayHint` (checkboxes ✓/○)
 - [ ] `textDocument/rename` + `prepareRename`
 - [ ] `workspace/symbol`
 
@@ -182,7 +179,7 @@ is not supported by Zed.
 
 ## Testing
 
-### Unit tests (`cargo test -p noted-lsp`) — 67 tests, all passing
+### Unit tests (`cargo test -p noted-lsp`) — 90 tests, all passing
 
 - `vault/parser.rs`: heading/wikilink/tag/frontmatter extraction (8 tests)
 - `vault/index.rs`: build_index, resolve_wikilink (7 tests)
@@ -192,7 +189,7 @@ is not supported by Zed.
 - `hover.rs`: snippet extraction, frontmatter skipping, hover output (14 tests)
 - `symbols.rs`: heading tree building, nesting, range correctness (10 tests)
 - `inlay_hints.rs`: checkbox hint positions (5 tests)
-- `semantic_tokens.rs`: (no unit tests yet)
+- `semantic_tokens.rs`: token positions, delta encoding, broken wikilinks (23 tests)
 
 ### Integration tests (planned)
 

@@ -2,7 +2,7 @@
 
 A Zed IDE extension that turns the editor into an Obsidian-like environment for Markdown — wikilinks, callouts, tags, smart navigation, and live preview.
 
-> **Status:** Phase 1 complete. All core LSP features working (completion, hover, diagnostics, go-to-definition, document symbols). 67 tests passing. Phase 2 in progress.
+> **Status:** Phase 1 complete. Phase 2 in progress — semantic tokens (full + delta) done. 90 tests passing.
 
 ---
 
@@ -15,7 +15,8 @@ A Zed IDE extension that turns the editor into an Obsidian-like environment for 
 | Broken link diagnostics | ✅ Working |
 | Hover preview (title + snippet + tags) | ✅ Working |
 | Document symbols / outline | ✅ Working |
-| Semantic tokens (H1–H3, bold, italic) | ✅ Working |
+| Semantic tokens (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, math, frontmatter) | ✅ Working |
+| Semantic tokens delta (incremental updates) | ✅ Working |
 | Inlay hints (checkbox ✓/○) | ✅ Working |
 | Vault indexer (scan on open, reindex on save) | ✅ Working |
 | Tree-sitter grammar | 🚧 Written, needs `tree-sitter generate` |
@@ -70,7 +71,7 @@ Open any directory that contains `.md` files as your workspace. You should see:
 - **Broken links** underlined in red (after the vault finishes indexing)
 - **Outline panel** (`Cmd+Shift+O`) — hierarchical heading tree
 - **Inlay hints** — `- [x]` shows `✓`, `- [ ]` shows `○` after the bracket
-- **Semantic tokens** — headings and bold/italic styled (requires companion theme, see below)
+- **Semantic tokens** — headings (H1–H6), bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter (requires companion theme)
 
 The vault is indexed on startup. Open the Zed log (`Cmd+Shift+P` → "Open Log") and look for:
 
@@ -102,9 +103,15 @@ Example rules for a dark theme:
   { "selector": "heading.h1", "style": { "color": "#E8C56D", "font_weight": 800 } },
   { "selector": "heading.h2", "style": { "color": "#D4A94E", "font_weight": 700 } },
   { "selector": "heading.h3", "style": { "color": "#BF9040", "font_weight": 600 } },
+  { "selector": "heading.h4", "style": { "color": "#B08030", "font_weight": 600 } },
   { "selector": "markup.bold", "style": { "font_weight": 700 } },
   { "selector": "markup.italic", "style": { "font_style": "italic" } },
-  { "selector": "punctuation",  "style": { "color": "#555555" } }
+  { "selector": "markup.strikethrough", "style": { "font_style": "italic" } },
+  { "selector": "markup.wikilink", "style": { "color": "#6CB6FF" } },
+  { "selector": "markup.wikilink.broken", "style": { "color": "#FF6B6B" } },
+  { "selector": "markup.tag", "style": { "color": "#C586C0" } },
+  { "selector": "comment.frontmatter", "style": { "color": "#6A737D", "font_style": "italic" } },
+  { "selector": "punctuation.markup_punctuation", "style": { "color": "#3A3A3A" } }
 ]
 ```
 
@@ -148,7 +155,7 @@ noted/
 ### Build & check
 
 ```bash
-# Run all tests (67 tests)
+# Run all tests (90 tests)
 cargo test -p noted-lsp
 
 # Build release binary
