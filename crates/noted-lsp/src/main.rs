@@ -8,6 +8,7 @@ mod symbols;
 mod vault;
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -22,7 +23,7 @@ use definition::find_definition;
 use diagnostics::compute_diagnostics;
 use hover::compute_hover;
 use inlay_hints::compute_inlay_hints;
-use semantic_tokens::compute_semantic_tokens;
+use semantic_tokens::{compute_semantic_tokens, compute_token_delta, tokens_to_flat};
 use symbols::compute_document_symbols;
 use vault::{build_index, parse_note, scan_vault, VaultIndex};
 
@@ -31,6 +32,15 @@ struct NotedLsp {
     documents: Arc<RwLock<HashMap<Url, String>>>,
     index: Arc<RwLock<VaultIndex>>,
     vault_root: Arc<RwLock<Option<Utf8PathBuf>>>,
+    /// Cached flat token data (5 u32 per token) for semantic tokens delta.
+    token_cache: Arc<RwLock<HashMap<Url, Vec<u32>>>>,
+    result_counter: Arc<AtomicU64>,
+}
+
+impl NotedLsp {
+    fn next_result_id(&self) -> String {
+        self.result_counter.fetch_add(1, Ordering::Relaxed).to_string()
+    }
 }
 
 impl NotedLsp {
@@ -119,7 +129,7 @@ impl LanguageServer for NotedLsp {
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
                             legend: semantic_tokens::legend(),
-                            full: Some(SemanticTokensFullOptions::Bool(true)),
+                            full: Some(SemanticTokensFullOptions::Delta { delta: Some(true) }),
                             range: None,
                             work_done_progress_options: Default::default(),
                         },
@@ -171,10 +181,10 @@ impl LanguageServer for NotedLsp {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.write().await.remove(&params.text_document.uri);
-        self.client
-            .publish_diagnostics(params.text_document.uri, vec![], None)
-            .await;
+        let uri = params.text_document.uri;
+        self.documents.write().await.remove(&uri);
+        self.token_cache.write().await.remove(&uri);
+        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
@@ -241,16 +251,48 @@ impl LanguageServer for NotedLsp {
         &self,
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
+        let uri = params.text_document.uri;
         let documents = self.documents.read().await;
-        let text = match documents.get(&params.text_document.uri) {
+        let text = match documents.get(&uri) {
             Some(t) => t.clone(),
             None => return Ok(None),
         };
         drop(documents);
         let index = self.index.read().await;
+        let tokens = compute_semantic_tokens(&text, &index);
+        drop(index);
+        let flat = tokens_to_flat(&tokens);
+        let result_id = self.next_result_id();
+        self.token_cache.write().await.insert(uri, flat);
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
-            result_id: None,
-            data: compute_semantic_tokens(&text, &index),
+            result_id: Some(result_id),
+            data: tokens,
+        })))
+    }
+
+    async fn semantic_tokens_full_delta(
+        &self,
+        params: SemanticTokensDeltaParams,
+    ) -> Result<Option<SemanticTokensFullDeltaResult>> {
+        let uri = params.text_document.uri;
+        let documents = self.documents.read().await;
+        let text = match documents.get(&uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let index = self.index.read().await;
+        let new_tokens = compute_semantic_tokens(&text, &index);
+        drop(index);
+        let new_flat = tokens_to_flat(&new_tokens);
+        let result_id = self.next_result_id();
+        let mut cache = self.token_cache.write().await;
+        let old_flat = cache.get(&uri).cloned().unwrap_or_default();
+        let edits = compute_token_delta(&old_flat, &new_flat);
+        cache.insert(uri, new_flat);
+        Ok(Some(SemanticTokensFullDeltaResult::TokensDelta(SemanticTokensDelta {
+            result_id: Some(result_id),
+            edits,
         })))
     }
 
@@ -280,6 +322,8 @@ async fn main() {
         documents: Arc::new(RwLock::new(HashMap::new())),
         index: Arc::new(RwLock::new(VaultIndex::default())),
         vault_root: Arc::new(RwLock::new(None)),
+        token_cache: Arc::new(RwLock::new(HashMap::new())),
+        result_counter: Arc::new(AtomicU64::new(0)),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

@@ -307,6 +307,67 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
     encode_delta(raw)
 }
 
+// ── Delta helpers ─────────────────────────────────────────────────────────────
+
+/// Flatten a token list into the raw u32 array used by the LSP wire format (5 u32 per token).
+pub fn tokens_to_flat(tokens: &[SemanticToken]) -> Vec<u32> {
+    let mut flat = Vec::with_capacity(tokens.len() * 5);
+    for t in tokens {
+        flat.extend_from_slice(&[
+            t.delta_line,
+            t.delta_start,
+            t.length,
+            t.token_type,
+            t.token_modifiers_bitset,
+        ]);
+    }
+    flat
+}
+
+/// Reconstruct `SemanticToken` objects from a flat u32 array (5 u32 per token).
+fn flat_to_tokens(flat: &[u32]) -> Vec<SemanticToken> {
+    flat.chunks_exact(5)
+        .map(|c| SemanticToken {
+            delta_line: c[0],
+            delta_start: c[1],
+            length: c[2],
+            token_type: c[3],
+            token_modifiers_bitset: c[4],
+        })
+        .collect()
+}
+
+/// Compute the minimal edit set to transform `old` into `new` (both flat u32 arrays).
+///
+/// `start` / `delete_count` are in raw u32 element units; `data` contains the replacement tokens.
+/// Returns an empty vec when the arrays are identical (unchanged file → empty delta).
+pub fn compute_token_delta(old: &[u32], new: &[u32]) -> Vec<SemanticTokensEdit> {
+    if old == new {
+        return vec![];
+    }
+
+    // Find the common prefix (must align to a 5-element token boundary).
+    let raw_prefix = old.iter().zip(new.iter()).take_while(|(a, b)| a == b).count();
+    let prefix = (raw_prefix / 5) * 5;
+
+    // Find the common suffix in the remaining slices.
+    // Suffix is safe to reuse only when the encoded u32 values match exactly, which implies
+    // the delta encoding is consistent with the shared preceding context.
+    let old_rest = &old[prefix..];
+    let new_rest = &new[prefix..];
+    let raw_suffix = old_rest.iter().rev().zip(new_rest.iter().rev()).take_while(|(a, b)| a == b).count();
+    let suffix = (raw_suffix / 5) * 5;
+
+    let delete_count = (old_rest.len() - suffix) as u32;
+    let insert = &new_rest[..new_rest.len() - suffix];
+
+    vec![SemanticTokensEdit {
+        start: prefix as u32,
+        delete_count,
+        data: if insert.is_empty() { None } else { Some(flat_to_tokens(insert)) },
+    }]
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Returns the exclusive end-line index of the frontmatter block (0 = no frontmatter).
@@ -554,6 +615,63 @@ mod tests {
         // "- [ ] item" — [ ] at col 2, len 3
         let tokens = decode(&compute_semantic_tokens("- [ ] item\n", &idx));
         assert!(has(&tokens, 0, 2, 3, TYPE_MARKUP, MOD_CHECKBOX_TODO));
+    }
+
+    // ── Delta tests ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_delta_unchanged_returns_empty_edits() {
+        let idx = empty_index();
+        let tokens = compute_semantic_tokens("# Hello\n", &idx);
+        let flat = tokens_to_flat(&tokens);
+        let edits = compute_token_delta(&flat, &flat);
+        assert!(edits.is_empty(), "unchanged content must produce no edits");
+    }
+
+    #[test]
+    fn test_delta_changed_returns_edits() {
+        let idx = empty_index();
+        let old_flat = tokens_to_flat(&compute_semantic_tokens("# Hello\n", &idx));
+        let new_flat = tokens_to_flat(&compute_semantic_tokens("## World\n", &idx));
+        let edits = compute_token_delta(&old_flat, &new_flat);
+        assert!(!edits.is_empty(), "changed content must produce edits");
+    }
+
+    #[test]
+    fn test_delta_applying_edit_produces_new_flat() {
+        let idx = empty_index();
+        let old_flat = tokens_to_flat(&compute_semantic_tokens("plain text\n", &idx));
+        let new_flat = tokens_to_flat(&compute_semantic_tokens("# Heading\n", &idx));
+        let edits = compute_token_delta(&old_flat, &new_flat);
+
+        // Simulate the client applying the edit to the flat u32 array
+        let mut result = old_flat.clone();
+        for edit in &edits {
+            let start = edit.start as usize;
+            let end = start + edit.delete_count as usize;
+            let data_flat = edit.data.as_deref()
+                .map(|tokens| tokens_to_flat(tokens))
+                .unwrap_or_default();
+            result.splice(start..end, data_flat);
+        }
+        assert_eq!(result, new_flat, "applying edits must produce the new flat array");
+    }
+
+    #[test]
+    fn test_tokens_to_flat_roundtrip() {
+        let idx = empty_index();
+        let tokens = compute_semantic_tokens("**bold** and *italic*\n", &idx);
+        let flat = tokens_to_flat(&tokens);
+        assert_eq!(flat.len(), tokens.len() * 5);
+        // Verify each token's 5 values are in order
+        for (i, t) in tokens.iter().enumerate() {
+            let base = i * 5;
+            assert_eq!(flat[base], t.delta_line);
+            assert_eq!(flat[base + 1], t.delta_start);
+            assert_eq!(flat[base + 2], t.length);
+            assert_eq!(flat[base + 3], t.token_type);
+            assert_eq!(flat[base + 4], t.token_modifiers_bitset);
+        }
     }
 
     #[test]
