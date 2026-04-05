@@ -903,7 +903,7 @@ Write tests in `test/corpus/` for each new node type.
 - Make sure the root `Cargo.toml` doesn't conflict with the grammar.
 
 `[VERIFY]` Reinstall dev extension → open .md → Status bar shows
-"Noted" as language. Wikilinks and callouts are highlighted differently from plain text.
+"Noted Markdown" as language. Wikilinks and callouts are highlighted differently from plain text.
 
 #### 1.2. Vault Indexer
 

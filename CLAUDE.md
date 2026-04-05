@@ -243,7 +243,7 @@ vault/
    as a workaround until `tree-sitter-cli` is available.
 
 3. **Tree-sitter conflict:** Zed already has a built-in `tree-sitter-markdown`.
-   Our grammar registers as a separate language (`noted`), not overwriting standard Markdown.
+   Our grammar registers as a separate language (`Noted Markdown`), not overwriting standard Markdown.
 
 4. **Semantic tokens + theme:** Semantic tokens without `semantic_token_rules` in the companion
    theme have no visual effect. `semantic_token_rules` in `settings.json` is not supported by Zed.

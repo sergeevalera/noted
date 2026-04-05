@@ -8,4 +8,4 @@ repository = "https://github.com/valerysergeeva/noted"
 
 [language_servers.noted-lsp]
 name = "Noted LSP"
-languages = ["Noted"]
+languages = ["Noted Markdown"]

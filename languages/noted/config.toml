@@ -1,4 +1,4 @@
-name = "Noted"
+name = "Noted Markdown"
 path_suffixes = ["md", "markdown"]
 line_comments = []
 
