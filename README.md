@@ -96,22 +96,28 @@ Semantic token visual styling is controlled by the **theme**, not `settings.json
 To see heading and formatting colours, install the companion `noted-theme` extension
 (Phase 2 — not yet published) or add `semantic_token_rules` to your custom Zed theme file.
 
-Example rules for a dark theme:
+Example rules for the Verdant Garden dark theme:
 
 ```json
 "semantic_token_rules": [
-  { "selector": "heading.h1", "style": { "color": "#E8C56D", "font_weight": 800 } },
-  { "selector": "heading.h2", "style": { "color": "#D4A94E", "font_weight": 700 } },
-  { "selector": "heading.h3", "style": { "color": "#BF9040", "font_weight": 600 } },
-  { "selector": "heading.h4", "style": { "color": "#B08030", "font_weight": 600 } },
+  { "selector": "heading.h1", "style": { "color": "#8FBF6A", "font_weight": 800 } },
+  { "selector": "heading.h2", "style": { "color": "#7AAD58", "font_weight": 700 } },
+  { "selector": "heading.h3", "style": { "color": "#669B48", "font_weight": 600 } },
+  { "selector": "heading.h4", "style": { "color": "#548938", "font_weight": 500 } },
+  { "selector": "heading.h5", "style": { "color": "#447830", "font_weight": 500 } },
+  { "selector": "heading.h6", "style": { "color": "#3A6828", "font_weight": 400 } },
   { "selector": "markup.bold", "style": { "font_weight": 700 } },
   { "selector": "markup.italic", "style": { "font_style": "italic" } },
-  { "selector": "markup.strikethrough", "style": { "font_style": "italic" } },
-  { "selector": "markup.wikilink", "style": { "color": "#6CB6FF" } },
-  { "selector": "markup.wikilink.broken", "style": { "color": "#FF6B6B" } },
-  { "selector": "markup.tag", "style": { "color": "#C586C0" } },
-  { "selector": "comment.frontmatter", "style": { "color": "#6A737D", "font_style": "italic" } },
-  { "selector": "punctuation.markup_punctuation", "style": { "color": "#3A3A3A" } }
+  { "selector": "markup.strikethrough", "style": { "color": "#7A7C72" } },
+  { "selector": "markup.code", "style": { "color": "#E0B460" } },
+  { "selector": "markup.wikilink", "style": { "color": "#7CB5C4" } },
+  { "selector": "markup.wikilink.broken", "style": { "color": "#CC4444" } },
+  { "selector": "markup.tag", "style": { "color": "#D4A56A" } },
+  { "selector": "markup.callout", "style": { "color": "#C47D8A", "font_style": "italic" } },
+  { "selector": "markup.math", "style": { "color": "#B8DC94", "font_style": "italic" } },
+  { "selector": "markup.checkbox_done", "style": { "color": "#7A7C72" } },
+  { "selector": "comment.frontmatter", "style": { "color": "#545648", "font_style": "italic" } },
+  { "selector": "punctuation.markup_punctuation", "style": { "color": "#4A4A40" } }
 ]
 ```
 

@@ -453,19 +453,19 @@ These rules are included in the extension documentation as recommended user sett
 {
   "global_lsp_settings": {
     "semantic_token_rules": [
-      // === HEADINGS: hierarchy through color + weight ===
+      // === HEADINGS: hierarchy through color + weight (Verdant Garden green ramp) ===
       { "token_type": "heading", "token_modifiers": ["h1"],
-        "foreground_color": "#E8C56D", "font_weight": 800 },
+        "foreground_color": "#8FBF6A", "font_weight": 800 },
       { "token_type": "heading", "token_modifiers": ["h2"],
-        "foreground_color": "#D4A94E", "font_weight": 700 },
+        "foreground_color": "#7AAD58", "font_weight": 700 },
       { "token_type": "heading", "token_modifiers": ["h3"],
-        "foreground_color": "#BF9040", "font_weight": 600 },
+        "foreground_color": "#669B48", "font_weight": 600 },
       { "token_type": "heading", "token_modifiers": ["h4"],
-        "foreground_color": "#A87A35", "font_weight": 500 },
+        "foreground_color": "#548938", "font_weight": 500 },
       { "token_type": "heading", "token_modifiers": ["h5"],
-        "foreground_color": "#8C6530", "font_weight": 500 },
+        "foreground_color": "#447830", "font_weight": 500 },
       { "token_type": "heading", "token_modifiers": ["h6"],
-        "foreground_color": "#70502A", "font_weight": 400 },
+        "foreground_color": "#3A6828", "font_weight": 400 },
 
       // === INLINE FORMATTING ===
       { "token_type": "markup", "token_modifiers": ["bold"],
@@ -473,41 +473,41 @@ These rules are included in the extension documentation as recommended user sett
       { "token_type": "markup", "token_modifiers": ["italic"],
         "font_style": "italic" },
       { "token_type": "markup", "token_modifiers": ["strikethrough"],
-        "strikethrough": true, "foreground_color": "#888888" },
+        "strikethrough": true, "foreground_color": "#7A7C72" },
       { "token_type": "markup", "token_modifiers": ["code"],
-        "foreground_color": "#CE9178", "background_color": "#2A2A2A" },
+        "foreground_color": "#E0B460", "background_color": "#181816" },
 
       // === LINKS ===
       { "token_type": "markup", "token_modifiers": ["wikilink"],
-        "foreground_color": "#6CB6FF", "underline": true },
+        "foreground_color": "#7CB5C4", "underline": true },
       { "token_type": "markup", "token_modifiers": ["wikilink", "broken"],
-        "foreground_color": "#F44747", "underline": "#F44747", "strikethrough": true },
+        "foreground_color": "#CC4444", "underline": "#CC4444", "strikethrough": true },
       { "token_type": "string", "token_modifiers": ["link"],
-        "foreground_color": "#6CB6FF", "underline": true },
+        "foreground_color": "#A0D8D8", "underline": true },
 
       // === TAGS & CALLOUTS ===
       { "token_type": "markup", "token_modifiers": ["tag"],
-        "foreground_color": "#C586C0", "background_color": "#3A2A3A" },
+        "foreground_color": "#D4A56A", "background_color": "#1E1A10" },
       { "token_type": "markup", "token_modifiers": ["callout"],
-        "foreground_color": "#4EC9B0", "font_style": "italic" },
+        "foreground_color": "#C47D8A", "font_style": "italic" },
 
       // === CHECKBOXES ===
-      { "token_type": "markup", "token_modifiers": ["checkbox", "done"],
-        "foreground_color": "#6A9955", "strikethrough": true },
-      { "token_type": "markup", "token_modifiers": ["checkbox", "todo"],
-        "foreground_color": "#CCCCCC" },
+      { "token_type": "markup", "token_modifiers": ["checkbox_done"],
+        "foreground_color": "#7A7C72", "strikethrough": true },
+      { "token_type": "markup", "token_modifiers": ["checkbox_todo"],
+        "foreground_color": "#C8CAC0" },
 
       // === MATH ===
       { "token_type": "markup", "token_modifiers": ["math"],
-        "foreground_color": "#B5CEA8", "font_style": "italic" },
+        "foreground_color": "#B8DC94", "font_style": "italic" },
 
       // === FRONTMATTER ===
       { "token_type": "comment", "token_modifiers": ["frontmatter"],
-        "foreground_color": "#6A737D", "font_style": "italic" },
+        "foreground_color": "#545648", "font_style": "italic" },
 
-      // === MUTED MD SYNTAX ===
-      { "token_type": "punctuation", "token_modifiers": ["markup"],
-        "foreground_color": "#444444" }
+      // === MUTED MD SYNTAX (# ** [[ ]] > --- ~~) ===
+      { "token_type": "punctuation", "token_modifiers": ["markup_punctuation"],
+        "foreground_color": "#4A4A40" }
     ]
   }
 }
@@ -521,28 +521,28 @@ In addition to semantic token rules, the theme defines styles for Tree-sitter ca
 ```jsonc
 {
   "syntax": {
-    // Standard MD captures from tree-sitter-markdown
+    // Standard MD captures from tree-sitter-markdown (dark theme — Verdant Garden)
     "emphasis": { "font_style": "italic" },
     "emphasis.strong": { "font_weight": 700 },
-    "title": { "font_weight": 800, "color": "#E8C56D" },
-    "link_text": { "color": "#6CB6FF" },
-    "link_uri": { "color": "#6CB6FF", "font_style": "italic" },
-    "punctuation.bracket": { "color": "#444444" },
-    "punctuation.delimiter": { "color": "#444444" },
-    "punctuation.special": { "color": "#444444" },
+    "title": { "font_weight": 800, "color": "#8FBF6A" },
+    "link_text": { "color": "#A0D8D8" },
+    "link_uri": { "color": "#7CB5C4", "font_style": "italic" },
+    "punctuation.bracket": { "color": "#4A4A40" },
+    "punctuation.delimiter": { "color": "#4A4A40" },
+    "punctuation.special": { "color": "#4A4A40" },
 
     // Custom captures from noted grammar
-    "markup.wikilink": { "color": "#6CB6FF" },
-    "markup.tag": { "color": "#C586C0" },
-    "markup.callout": { "color": "#4EC9B0", "font_style": "italic" },
+    "markup.wikilink": { "color": "#7CB5C4" },
+    "markup.tag": { "color": "#D4A56A" },
+    "markup.callout": { "color": "#C47D8A", "font_style": "italic" },
 
-    // Standard code captures (for code blocks)
-    "string": { "color": "#CE9178" },
-    "keyword": { "color": "#569CD6", "font_weight": 600 },
-    "function": { "color": "#DCDCAA" },
-    "comment": { "color": "#6A9955", "font_style": "italic" },
-    "type": { "color": "#4EC9B0" },
-    "variable": { "color": "#9CDCFE" }
+    // Standard code captures (for code blocks — Verdant Garden code palette)
+    "string": { "color": "#E0B460" },
+    "keyword": { "color": "#72AAD0", "font_weight": 600 },
+    "function": { "color": "#B8DC94" },
+    "comment": { "color": "#545648", "font_style": "italic" },
+    "type": { "color": "#A898C4" },
+    "variable": { "color": "#C8CAC0" }
   }
 }
 ```
@@ -551,8 +551,8 @@ In addition to semantic token rules, the theme defines styles for Tree-sitter ca
 
 | Variant | Description |
 |---|---|
-| **Noted Dark** | Dark background (#1E1E1E), warm headings, soft contrast |
-| **Noted Light** | Light background (#FAFAFA), dark headings, paper-like feel |
+| **Verdant Dark** | Near-black warm background (`#0A0A08`), green heading ramp, teal links |
+| **Verdant Light** | Near-white warm background (`#FCFCFA`), dark green headings, paper-like feel |
 
 Both variants maintain full code highlighting in code blocks — the theme does not
 sacrifice code experience for prose. Code blocks use the standard syntax color set.
@@ -580,8 +580,8 @@ noted-theme/
 ├── extension.toml          # id = "noted-theme"
 ├── LICENSE
 └── themes/
-    ├── noted-dark.json
-    └── noted-light.json
+    ├── verdant-dark.json   # Verdant Garden dark
+    └── verdant-light.json  # Verdant Garden light
 ```
 
 ---
@@ -1112,37 +1112,37 @@ name = "Noted Theme"
 version = "0.1.0"
 schema_version = 1
 authors = ["Your Name"]
-description = "A prose-optimized theme for Markdown editing in Zed"
+description = "Verdant Garden — a prose-optimized dark/light theme for Markdown editing in Zed"
 ```
 
-Create `themes/noted-dark.json` — full theme per Zed Theme Schema v0.2.0:
+Create `themes/verdant-dark.json` — full theme per Zed Theme Schema v0.2.0:
 - Appearance: dark
-- Editor background: `#1A1B1E` (slightly warmer than standard)
-- Foreground: `#D4D4D4`
-- Syntax styles:
-  - `title`: `{ "color": "#E8C56D", "font_weight": 800 }` (for headings)
+- Editor background: `#0A0A08` (near-black warm)
+- Foreground: `#C8CAC0`
+- Syntax styles (Verdant Garden palette — see `verdant-garden-colors.md`):
+  - `title`: `{ "color": "#8FBF6A", "font_weight": 800 }` (H1 heading)
   - `emphasis`: `{ "font_style": "italic" }`
   - `emphasis.strong`: `{ "font_weight": 700 }`
-  - `link_text`: `{ "color": "#6CB6FF" }`
-  - `link_uri`: `{ "color": "#6CB6FF", "font_style": "italic" }`
-  - `punctuation.special`: `{ "color": "#3A3A3A" }` (maximally muted)
-  - `punctuation.delimiter`: `{ "color": "#3A3A3A" }`
-  - `label`: `{ "color": "#C586C0" }` (for tags)
-  - `comment`: `{ "color": "#6A737D", "font_style": "italic" }` (for frontmatter)
-  - `string`: `{ "color": "#CE9178" }`
-  - `keyword`: `{ "color": "#569CD6", "font_weight": 600 }`
-  - `function`: `{ "color": "#DCDCAA" }`
-  - `type`: `{ "color": "#4EC9B0" }`
-  - `variable`: `{ "color": "#9CDCFE" }`
-- Full set of UI colors (editor, tabs, panels, status bar, borders) in dark tones
+  - `link_text`: `{ "color": "#A0D8D8" }`
+  - `link_uri`: `{ "color": "#7CB5C4", "font_style": "italic" }`
+  - `punctuation.special`: `{ "color": "#4A4A40" }` (dimmed MD syntax)
+  - `punctuation.delimiter`: `{ "color": "#4A4A40" }`
+  - `string`: `{ "color": "#E0B460" }`
+  - `keyword`: `{ "color": "#72AAD0", "font_weight": 600 }`
+  - `function`: `{ "color": "#B8DC94" }`
+  - `type`: `{ "color": "#A898C4" }`
+  - `variable`: `{ "color": "#C8CAC0" }`
+  - `comment`: `{ "color": "#545648", "font_style": "italic" }`
+- Full set of UI colors using stone/green/teal palette from `verdant-garden-colors.md`
   optimized for extended prose reading.
 
-Create `themes/noted-light.json`:
+Create `themes/verdant-light.json`:
 - Appearance: light
-- Editor background: `#FAFAF8` (paper-like)
-- Foreground: `#24292E`
-- Syntax: same semantic distinctions but with inverted palette.
-  Headings: dark brown. Links: blue. Punctuation: `#D0D0D0`.
+- Editor background: `#FCFCFA` (near-white warm, paper-like)
+- Foreground: `#2A2E22`
+- Syntax: same semantic distinctions using light-theme stops from `verdant-garden-colors.md`.
+  Headings: dark green ramp (`#3D7A1A` → `#8DCA64`). Links: teal (`#2E7E8C`).
+  Punctuation: `#C4C6BC` (dimmed).
 
 Add `LICENSE` (MIT).
 
