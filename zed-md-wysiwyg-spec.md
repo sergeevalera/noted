@@ -1119,7 +1119,7 @@ Create `themes/verdant-dark.json` — full theme per Zed Theme Schema v0.2.0:
 - Appearance: dark
 - Editor background: `#0A0A08` (near-black warm)
 - Foreground: `#C8CAC0`
-- Syntax styles (Verdant Garden palette — see `verdant-garden-colors.md`):
+- Syntax styles (Verdant Garden palette — see `noted-theme/verdant-garden-colors.md`):
   - `title`: `{ "color": "#8FBF6A", "font_weight": 800 }` (H1 heading)
   - `emphasis`: `{ "font_style": "italic" }`
   - `emphasis.strong`: `{ "font_weight": 700 }`
@@ -1133,14 +1133,14 @@ Create `themes/verdant-dark.json` — full theme per Zed Theme Schema v0.2.0:
   - `type`: `{ "color": "#A898C4" }`
   - `variable`: `{ "color": "#C8CAC0" }`
   - `comment`: `{ "color": "#545648", "font_style": "italic" }`
-- Full set of UI colors using stone/green/teal palette from `verdant-garden-colors.md`
+- Full set of UI colors using stone/green/teal palette from `noted-theme/verdant-garden-colors.md`
   optimized for extended prose reading.
 
 Create `themes/verdant-light.json`:
 - Appearance: light
 - Editor background: `#FCFCFA` (near-white warm, paper-like)
 - Foreground: `#2A2E22`
-- Syntax: same semantic distinctions using light-theme stops from `verdant-garden-colors.md`.
+- Syntax: same semantic distinctions using light-theme stops from `noted-theme/verdant-garden-colors.md`.
   Headings: dark green ramp (`#3D7A1A` → `#8DCA64`). Links: teal (`#2E7E8C`).
   Punctuation: `#C4C6BC` (dimmed).
 
