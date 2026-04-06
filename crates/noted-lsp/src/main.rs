@@ -1,3 +1,4 @@
+mod code_actions;
 mod completion;
 mod definition;
 mod diagnostics;
@@ -18,6 +19,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
+use code_actions::compute_code_actions;
 use completion::compute_completions;
 use definition::find_definition;
 use diagnostics::compute_diagnostics;
@@ -136,6 +138,7 @@ impl LanguageServer for NotedLsp {
                     ),
                 ),
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -304,6 +307,18 @@ impl LanguageServer for NotedLsp {
         };
         drop(documents);
         Ok(Some(compute_inlay_hints(&text)))
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let documents = self.documents.read().await;
+        let text = match documents.get(&uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let actions = compute_code_actions(&uri, params.range, &text);
+        if actions.is_empty() { Ok(None) } else { Ok(Some(actions)) }
     }
 }
 

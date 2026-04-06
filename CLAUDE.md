@@ -90,6 +90,7 @@ noted/
     ├── Cargo.toml              # LSP server crate
     └── src/
         ├── main.rs             # Entry point, server state, LSP handler dispatch
+        ├── code_actions.rs     # textDocument/codeAction (checkbox, wrap, heading, callout)
         ├── completion.rs       # textDocument/completion (wikilinks, trigger: `[`)
         ├── definition.rs       # textDocument/definition (go-to wikilink target)
         ├── diagnostics.rs      # publishDiagnostics (broken wikilinks)
@@ -167,7 +168,7 @@ is not supported by Zed.
 
 - [x] `textDocument/semanticTokens/full` (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter)
 - [x] `textDocument/semanticTokens/full/delta` (prefix/suffix diff; empty delta on unchanged file)
-- [ ] `textDocument/codeAction`
+- [x] `textDocument/codeAction` (toggle checkbox, wrap selection, heading level, insert callout/table, change callout type)
 - [x] `textDocument/inlayHint` (checkboxes ✓/○)
 - [ ] `textDocument/rename` + `prepareRename`
 - [ ] `workspace/symbol`
@@ -179,10 +180,11 @@ is not supported by Zed.
 
 ## Testing
 
-### Unit tests (`cargo test -p noted-lsp`) — 90 tests, all passing
+### Unit tests (`cargo test -p noted-lsp`) — 104 tests, all passing
 
 - `vault/parser.rs`: heading/wikilink/tag/frontmatter extraction (8 tests)
 - `vault/index.rs`: build_index, resolve_wikilink (7 tests)
+- `code_actions.rs`: checkbox toggle, wrap, heading level, callout change (14 tests)
 - `completion.rs`: wikilink completion filtering and TextEdit ranges (6 tests)
 - `definition.rs`: cursor-in-span detection, anchor/alias stripping (7 tests)
 - `diagnostics.rs`: broken link detection, range computation (9 tests)
