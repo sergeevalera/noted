@@ -1,7 +1,6 @@
 ==================
 Simple wikilink
 ==================
-
 See [[My Note]] for details.
 
 ---
@@ -16,7 +15,6 @@ See [[My Note]] for details.
 ==================
 Wikilink with alias
 ==================
-
 See [[My Note|click here]] for details.
 
 ---
@@ -32,7 +30,6 @@ See [[My Note|click here]] for details.
 ==================
 Multiple wikilinks on one line
 ==================
-
 Link to [[Alice]] and [[Bob]].
 
 ---
@@ -50,14 +47,12 @@ Link to [[Alice]] and [[Bob]].
 ==================
 Wikilink in heading
 ==================
-
 # Note about [[Alice]]
 
 ---
 
 (document
   (heading
-    marker: _
     (text)
     (wikilink
       target: (wikilink_target))))

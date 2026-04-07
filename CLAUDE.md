@@ -77,14 +77,14 @@ noted/
 ├── Cargo.toml                  # Workspace root + WASM extension crate
 ├── src/lib.rs                  # Extension entry: locate LSP binary via NOTED_LSP_PATH
 ├── languages/noted/
-│   ├── config.toml             # Language config (grammar disabled until tree-sitter generate)
+│   ├── config.toml             # Language config (grammar = "noted")
 │   ├── highlights.scm          # Syntax highlighting queries (inactive without grammar)
 │   ├── injections.scm          # Code block language injection
 │   ├── outline.scm             # Outline panel queries
 │   └── folds.scm               # Code folding queries
-├── grammars/tree-sitter-noted/
+├── grammars/noted/
 │   ├── grammar.js              # Tree-sitter grammar definition
-│   ├── src/                    # Generated C parser — MISSING, run: tree-sitter generate
+│   ├── src/                    # Generated C parser (parser.c, tree_sitter/parser.h)
 │   └── test/corpus/            # Tree-sitter test cases
 └── crates/noted-lsp/
     ├── Cargo.toml              # LSP server crate
@@ -152,6 +152,70 @@ Note: semantic token visual styling is set at the **theme level** only
 (in the companion theme extension). `semantic_token_rules` in `settings.json`
 is not supported by Zed.
 
+## Execution Plan Progress
+
+### Phase 0 (Scaffolding & Research) — COMPLETE ✓
+
+- [x] 0.1.1 `[HUMAN]` Install Rust, wasm target, tree-sitter-cli
+- [x] 0.1.2 `[AGENT]` Cargo workspace structure (extension + LSP crates)
+- [x] 0.1.3 `[AGENT]` Minimal `src/lib.rs` for Zed extension
+- [x] 0.1.4 `[HUMAN]` Install as dev extension in Zed
+- [x] 0.2.1 `[AGENT]` Hello world LSP (tower-lsp, hover)
+- [x] 0.2.2 `[AGENT]` Connect extension to LSP binary
+- [x] 0.2.3 `[AGENT]` Add diagnostic to LSP
+- [x] 0.3.1 `[AGENT]` Semantic tokens provider (prototype)
+- [x] 0.3.2 `[HUMAN]` Verify semantic token styling in Zed
+- [x] 0.3.3 `[AGENT]` Inlay hints provider (checkboxes)
+- [x] 0.3.4 `[HUMAN]` Checkpoint: Strategy A+B confirmed
+
+### Phase 1 (MVP) — COMPLETE ✓
+
+- [x] 1.1.1 `[AGENT]` Tree-sitter grammar (`grammar.js` + generated `src/parser.c`, 24/24 corpus tests passing)
+- [x] 1.1.2 `[AGENT]` Tree-sitter query files (highlights.scm, folds.scm, outline.scm, injections.scm)
+- [x] 1.1.3 `[AGENT]` Integrate grammar into extension (grammar enabled in config.toml + extension.toml, generated files in src/)
+- [x] 1.2.1 `[AGENT]` Vault indexer data structures + scanner + parser
+- [x] 1.2.2 `[AGENT]` build_index + resolve_wikilink
+- [x] 1.2.3 `[AGENT]` Integrate vault indexer into LSP
+- [x] 1.3.1 `[AGENT]` Completion (wikilinks, trigger: `[`)
+- [x] 1.4.1 `[AGENT]` Go-to-definition (wikilink target + anchor)
+- [x] 1.5.1 `[AGENT]` Diagnostics (broken wikilinks)
+- [x] 1.6.1 `[AGENT]` Hover (note title + snippet + tags + backlinks)
+- [x] 1.7.1 `[AGENT]` Document symbols (hierarchical heading tree)
+- [x] 1.8.1 `[AGENT]` Remove hello world code
+- [x] 1.9.1 `[AGENT]` Create test vault in `tests/fixtures/vault/` (10 notes, covers wikilinks, tags, callouts, math, tables, broken links, frontmatter)
+- [x] 1.9.2 `[HUMAN]` MVP integration test
+
+### Phase 2 (Visual) — IN PROGRESS
+
+- [x] 2.1.1 `[AGENT]` Semantic tokens full (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter)
+- [x] 2.1.2 `[AGENT]` Semantic tokens delta (prefix/suffix diff; empty delta on unchanged)
+- [ ] 2.2.1 `[AGENT]` Companion theme (noted-theme/ directory not yet created)
+- [ ] 2.2.2 `[HUMAN]` Visual verification of theme
+- [x] 2.3.1 `[AGENT]` Code actions (toggle checkbox, wrap selection, heading level, insert callout/table, change callout type)
+- [ ] 2.4.1 `[AGENT]` Rename (prepareRename + rename wikilinks across files)
+- [ ] 2.5.1 `[AGENT]` Workspace symbols (search headings across all files)
+- [ ] 2.6.1 `[HUMAN]` Phase 2 integration test
+
+### Phase 3 (Preview) — NOT STARTED
+
+- [ ] 3.1.1 `[AGENT]` HTTP server (axum, embedded in LSP)
+- [ ] 3.1.2 `[AGENT]` Preview HTML + WebSocket client
+- [ ] 3.2.1 `[AGENT]` MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math + mermaid)
+- [ ] 3.2.2 `[AGENT]` Preview CSS styles
+- [ ] 3.3.1 `[AGENT]` Live sync (didChange → WebSocket → browser)
+- [ ] 3.4.1 `[AGENT]` /preview slash command
+- [ ] 3.4.2 `[HUMAN]` Phase 3 testing
+
+### Phase 4 (Publishing) — NOT STARTED
+
+- [ ] 4.1.1 `[AGENT]` CI workflow (.github/workflows/ci.yml)
+- [ ] 4.1.2 `[AGENT]` Release workflow (.github/workflows/release.yml)
+- [ ] 4.2.1 `[AGENT]` Auto-download LSP binary in extension
+- [ ] 4.3.1 `[AGENT]` README.md (final)
+- [ ] 4.3.2 `[AGENT]` CHANGELOG.md
+- [ ] 4.3.3 `[AGENT]` Theme README.md
+- [ ] 4.4.1 `[HUMAN]` Publish to Zed extension registry
+
 ## LSP Capabilities Checklist
 
 ### Phase 1 (MVP) — COMPLETE ✓
@@ -208,9 +272,9 @@ is not supported by Zed.
 - Open a directory with `.md` files
 - Verify each LSP feature
 
-## Test Vault (fixtures — not yet created)
+## Test Vault (fixtures)
 
-Planned location `tests/fixtures/vault/`:
+Location: `tests/fixtures/vault/`:
 
 ```
 vault/
@@ -236,10 +300,9 @@ vault/
 1. **Extension vs LSP confusion:** The extension (WASM) only registers the language and starts the LSP.
    All logic lives in the LSP binary. Do not put logic in `lib.rs`.
 
-2. **Tree-sitter grammar not generated:** `grammars/tree-sitter-noted/src/` must contain
-   `parser.c` (generated by `tree-sitter generate`) for Zed to compile the grammar. Without it,
-   the language fails to load. Currently the grammar is disabled in `config.toml` / `extension.toml`
-   as a workaround until `tree-sitter-cli` is available.
+2. **Tree-sitter grammar regeneration:** After changing `grammar.js`, run
+   `tree-sitter generate` + `tree-sitter test` in `grammars/noted/`.
+   Commit updated `src/parser.c` and `src/tree_sitter/parser.h`.
 
 3. **Tree-sitter conflict:** Zed already has a built-in `tree-sitter-markdown`.
    Our grammar registers as a separate language (`Noted Markdown`), not overwriting standard Markdown.

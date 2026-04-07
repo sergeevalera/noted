@@ -1,7 +1,6 @@
 ==================
 Note callout
 ==================
-
 > [!note]
 > Some content here.
 
@@ -15,7 +14,6 @@ Note callout
 ==================
 Callout with title
 ==================
-
 > [!warning] Be careful
 > This is dangerous.
 
@@ -30,7 +28,6 @@ Callout with title
 ==================
 Tip callout
 ==================
-
 > [!tip] Pro tip
 > Use keyboard shortcuts.
 
@@ -45,7 +42,6 @@ Tip callout
 ==================
 Callout with multiple continuation lines
 ==================
-
 > [!important]
 > First line.
 > Second line.

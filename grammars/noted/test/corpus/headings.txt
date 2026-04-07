@@ -1,46 +1,39 @@
 ==================
 H1 heading
 ==================
-
 # Hello World
 
 ---
 
 (document
   (heading
-    marker: _
     (text)))
 
 ==================
 H2 heading
 ==================
-
 ## Section Title
 
 ---
 
 (document
   (heading
-    marker: _
     (text)))
 
 ==================
 H3 heading
 ==================
-
 ### Subsection
 
 ---
 
 (document
   (heading
-    marker: _
     (text)))
 
 ==================
 Heading levels H1 through H6
 ==================
-
 # One
 ## Two
 ### Three
@@ -51,9 +44,9 @@ Heading levels H1 through H6
 ---
 
 (document
-  (heading marker: _ (text))
-  (heading marker: _ (text))
-  (heading marker: _ (text))
-  (heading marker: _ (text))
-  (heading marker: _ (text))
-  (heading marker: _ (text)))
+  (heading (text))
+  (heading (text))
+  (heading (text))
+  (heading (text))
+  (heading (text))
+  (heading (text)))

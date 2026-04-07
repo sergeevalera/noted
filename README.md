@@ -2,27 +2,30 @@
 
 A Zed IDE extension that turns the editor into an Obsidian-like environment for Markdown — wikilinks, callouts, tags, smart navigation, and live preview.
 
-> **Status:** Phase 1 complete. Phase 2 in progress — semantic tokens (full + delta) done. 90 tests passing.
+> **Status:** Phase 1 complete (LSP core). Phase 2 in progress — semantic tokens, delta, and code actions done. 104 tests passing. Next: companion theme, rename, workspace symbols.
 
 ---
 
 ## Features
 
-| Feature | Status |
-|---|---|
-| Wikilink completion (`[[`) | ✅ Working |
-| Go-to-definition on wikilinks | ✅ Working |
-| Broken link diagnostics | ✅ Working |
-| Hover preview (title + snippet + tags) | ✅ Working |
-| Document symbols / outline | ✅ Working |
-| Semantic tokens (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, math, frontmatter) | ✅ Working |
-| Semantic tokens delta (incremental updates) | ✅ Working |
-| Inlay hints (checkbox ✓/○) | ✅ Working |
-| Vault indexer (scan on open, reindex on save) | ✅ Working |
-| Tree-sitter grammar | 🚧 Written, needs `tree-sitter generate` |
-| Code actions | 📋 Planned (Phase 2) |
-| Rename / refactor | 📋 Planned (Phase 2) |
-| Live preview | 📋 Planned (Phase 3) |
+| Feature | Status | Phase |
+|---|---|---|
+| Wikilink completion (`[[`) | ✅ Working | 1 |
+| Go-to-definition on wikilinks | ✅ Working | 1 |
+| Broken link diagnostics | ✅ Working | 1 |
+| Hover preview (title + snippet + tags) | ✅ Working | 1 |
+| Document symbols / outline | ✅ Working | 1 |
+| Vault indexer (scan on open, reindex on save) | ✅ Working | 1 |
+| Semantic tokens (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, math, frontmatter) | ✅ Working | 2 |
+| Semantic tokens delta (incremental updates) | ✅ Working | 2 |
+| Inlay hints (checkbox ✓/○) | ✅ Working | 2 |
+| Code actions (toggle checkbox, wrap bold/italic/strike/code/wikilink, heading level, insert callout/table, change callout type) | ✅ Working | 2 |
+| Companion theme (Verdant Garden dark + light) | 📋 Planned | 2 |
+| Rename (wikilink refactoring across files) | 📋 Planned | 2 |
+| Workspace symbols (search headings across vault) | 📋 Planned | 2 |
+| Tree-sitter grammar (wikilinks, callouts, tags, embeds, checkboxes) | ✅ Working | 1 |
+| Test vault (integration fixtures) | 📋 Planned | 1 |
+| Live preview (browser + WebSocket sync) | 📋 Planned | 3 |
 
 ---
 
@@ -72,6 +75,7 @@ Open any directory that contains `.md` files as your workspace. You should see:
 - **Outline panel** (`Cmd+Shift+O`) — hierarchical heading tree
 - **Inlay hints** — `- [x]` shows `✓`, `- [ ]` shows `○` after the bracket
 - **Semantic tokens** — headings (H1–H6), bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter (requires companion theme)
+- **Code actions** (`Ctrl+.`) — toggle checkboxes, wrap selection in bold/italic/strikethrough/code/wikilink, change heading level, insert callouts/tables, change callout type
 
 The vault is indexed on startup. Open the Zed log (`Cmd+Shift+P` → "Open Log") and look for:
 
@@ -134,17 +138,18 @@ noted/
 ├── Cargo.toml                        # Workspace root + extension crate
 ├── languages/noted/            # Language definition for Zed
 │   ├── config.toml                   # File types, bracket pairs
-│   ├── highlights.scm                # Tree-sitter highlight queries (inactive until grammar compiled)
+│   ├── highlights.scm                # Tree-sitter highlight queries
 │   ├── injections.scm                # Fenced code block language injection
 │   ├── outline.scm                   # Outline panel node queries
 │   └── folds.scm                     # Code folding queries
-├── grammars/tree-sitter-noted/ # Custom Tree-sitter grammar
+├── grammars/noted/ # Custom Tree-sitter grammar
 │   ├── grammar.js                    # Grammar rules (wikilinks, callouts, tags, …)
-│   ├── src/                          # MISSING — run: tree-sitter generate
+│   ├── src/                          # Generated C parser
 │   └── test/corpus/                  # Grammar test cases
 └── crates/noted-lsp/                 # LSP server (native binary)
     └── src/
         ├── main.rs                   # Server state, handler dispatch
+        ├── code_actions.rs           # Code actions (checkbox, wrap, heading, callout)
         ├── completion.rs             # Wikilink completion
         ├── definition.rs             # Go-to-definition
         ├── diagnostics.rs            # Broken link diagnostics
@@ -161,7 +166,7 @@ noted/
 ### Build & check
 
 ```bash
-# Run all tests (90 tests)
+# Run all tests (104 tests)
 cargo test -p noted-lsp
 
 # Build release binary
@@ -176,27 +181,17 @@ cargo check -p noted --target wasm32-wasip2
 
 ### Tree-sitter grammar
 
-The grammar is written (`grammar.js`) but the generated C parser is missing.
-To activate it:
+The grammar (`grammar.js`) covers wikilinks, embeds, tags, callouts, checkboxes, headings, and fenced code blocks. The generated C parser is committed in `grammars/noted/src/`.
+
+After modifying `grammar.js`:
 
 ```bash
-# Install tree-sitter CLI
-cargo install tree-sitter-cli
-# or: npm install -g tree-sitter-cli
-
-cd grammars/tree-sitter-noted
-
-# Generate C parser
+cd grammars/noted
 tree-sitter generate
-
-# Run corpus tests
-tree-sitter test
+tree-sitter test    # 24 corpus tests
 ```
 
-After generating:
-1. Restore `grammar = "noted"` in `languages/noted/config.toml`
-2. Restore the `[grammars.noted]` block in `extension.toml`
-3. Commit the generated `src/parser.c` and `src/tree_sitter/parser.h`
+Then commit the updated `src/parser.c` and `src/tree_sitter/parser.h`.
 
 ---
 

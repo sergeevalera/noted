@@ -44,7 +44,7 @@ module.exports = grammar({
     heading: ($) =>
       seq(
         field("marker", /#{1,6} /),
-        repeat($.inline),
+        repeat($._inline),
         /\n/
       ),
 
@@ -55,7 +55,7 @@ module.exports = grammar({
         "> [!",
         field("callout_type", $.callout_type_name),
         "]",
-        optional(seq(" ", repeat($.inline))),
+        optional(seq(" ", repeat($._inline))),
         /\n/,
         repeat($.blockquote_continuation)
       ),
@@ -80,14 +80,14 @@ module.exports = grammar({
       seq(
         /[ \t]*(?:[-*+]|\d+[.)]) /,
         optional(field("checkbox", $.checkbox)),
-        repeat($.inline),
+        repeat($._inline),
         /\n/
       ),
 
     // Checkbox markers (including trailing space that separates them from content)
     checkbox: (_) => token(choice("[ ] ", "[x] ", "[X] ")),
 
-    paragraph_line: ($) => seq(repeat1($.inline), /\n/),
+    paragraph_line: ($) => seq(repeat1($._inline), /\n/),
 
     blank_line: (_) => "\n",
 
@@ -95,7 +95,7 @@ module.exports = grammar({
 
     // ─── Inline elements ──────────────────────────────────────────────────────
 
-    inline: ($) =>
+    _inline: ($) =>
       choice(
         $.embed, // must precede wikilink — both start with [, embed with ![[
         $.wikilink,

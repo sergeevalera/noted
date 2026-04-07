@@ -1,7 +1,6 @@
 ==================
 Simple tag
 ==================
-
 This is tagged #rust.
 
 ---
@@ -15,7 +14,6 @@ This is tagged #rust.
 ==================
 Tag with hyphen
 ==================
-
 Work on #project-alpha today.
 
 ---
@@ -29,7 +27,6 @@ Work on #project-alpha today.
 ==================
 Hierarchical tag
 ==================
-
 Filed under #areas/work/projects.
 
 ---
@@ -43,7 +40,6 @@ Filed under #areas/work/projects.
 ==================
 Multiple tags
 ==================
-
 Topics: #rust #async #tokio
 
 ---
@@ -60,12 +56,10 @@ Topics: #rust #async #tokio
 ==================
 Tag in heading is NOT a tag (heading marker takes priority)
 ==================
-
 # This is a heading
 
 ---
 
 (document
   (heading
-    marker: _
     (text)))

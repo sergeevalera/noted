@@ -1,7 +1,6 @@
 ==================
 Unchecked task
 ==================
-
 - [ ] Buy groceries
 
 ---
@@ -14,7 +13,6 @@ Unchecked task
 ==================
 Checked task
 ==================
-
 - [x] Write tests
 
 ---
@@ -27,7 +25,6 @@ Checked task
 ==================
 Checked task uppercase
 ==================
-
 - [X] Deploy to production
 
 ---
@@ -40,7 +37,6 @@ Checked task uppercase
 ==================
 Mixed task list
 ==================
-
 - [x] Done task
 - [ ] Pending task
 - [ ] Another pending

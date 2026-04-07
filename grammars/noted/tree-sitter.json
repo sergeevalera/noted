@@ -1,0 +1,14 @@
+{
+  "grammars": [
+    {
+      "name": "noted",
+      "camelcase": "Noted",
+      "scope": "source.noted",
+      "path": "."
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "links": {}
+  }
+}

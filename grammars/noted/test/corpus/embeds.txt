@@ -1,7 +1,6 @@
 ==================
 Image embed
 ==================
-
 ![[photo.png]]
 
 ---
@@ -14,7 +13,6 @@ Image embed
 ==================
 Note embed
 ==================
-
 ![[Daily Note]]
 
 ---
@@ -27,7 +25,6 @@ Note embed
 ==================
 Embed with path
 ==================
-
 ![[attachments/diagram.svg]]
 
 ---
