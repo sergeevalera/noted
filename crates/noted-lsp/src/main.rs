@@ -4,9 +4,11 @@ mod definition;
 mod diagnostics;
 mod hover;
 mod inlay_hints;
+mod rename;
 mod semantic_tokens;
 mod symbols;
 mod vault;
+mod workspace_symbols;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -25,8 +27,10 @@ use definition::find_definition;
 use diagnostics::compute_diagnostics;
 use hover::compute_hover;
 use inlay_hints::compute_inlay_hints;
+use rename::{compute_rename, prepare_rename};
 use semantic_tokens::{compute_semantic_tokens, compute_token_delta, tokens_to_flat};
 use symbols::compute_document_symbols;
+use workspace_symbols::compute_workspace_symbols;
 use vault::{build_index, parse_note, scan_vault, VaultIndex};
 
 struct NotedLsp {
@@ -92,6 +96,12 @@ impl NotedLsp {
 #[tower_lsp::async_trait]
 impl LanguageServer for NotedLsp {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let has_sem = params.capabilities.text_document
+            .as_ref()
+            .and_then(|td| td.semantic_tokens.as_ref())
+            .is_some();
+        tracing::info!("Client semantic token support: {}", has_sem);
+
         let root = params
             .root_uri
             .as_ref()
@@ -131,7 +141,7 @@ impl LanguageServer for NotedLsp {
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
                             legend: semantic_tokens::legend(),
-                            full: Some(SemanticTokensFullOptions::Delta { delta: Some(true) }),
+                            full: Some(SemanticTokensFullOptions::Bool(true)),
                             range: None,
                             work_done_progress_options: Default::default(),
                         },
@@ -139,6 +149,11 @@ impl LanguageServer for NotedLsp {
                 ),
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
+                workspace_symbol_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                })),
                 ..Default::default()
             },
             ..Default::default()
@@ -147,7 +162,7 @@ impl LanguageServer for NotedLsp {
 
     async fn initialized(&self, _: InitializedParams) {
         tracing::info!("noted-lsp started");
-        self.client.log_message(MessageType::INFO, "noted-lsp started").await;
+        self.client.log_message(MessageType::INFO, "noted-lsp started (semantic tokens enabled)").await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -264,6 +279,7 @@ impl LanguageServer for NotedLsp {
         let index = self.index.read().await;
         let tokens = compute_semantic_tokens(&text, &index);
         drop(index);
+        self.client.log_message(MessageType::INFO, format!("semantic_tokens_full: {} tokens", tokens.len())).await;
         let flat = tokens_to_flat(&tokens);
         let result_id = self.next_result_id();
         self.token_cache.write().await.insert(uri, flat);
@@ -319,6 +335,45 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let actions = compute_code_actions(&uri, params.range, &text);
         if actions.is_empty() { Ok(None) } else { Ok(Some(actions)) }
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let uri = &params.text_document.uri;
+        let position = params.position;
+        let documents = self.documents.read().await;
+        let text = match documents.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let line_text = text.lines().nth(position.line as usize).unwrap_or("");
+        Ok(prepare_rename(line_text, position.line, position.character))
+    }
+
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
+        let index = self.index.read().await;
+        let symbols = compute_workspace_symbols(&params.query, &index);
+        if symbols.is_empty() { Ok(None) } else { Ok(Some(symbols)) }
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let documents = self.documents.read().await;
+        let text = match documents.get(uri) {
+            Some(t) => t.clone(),
+            None => return Ok(None),
+        };
+        drop(documents);
+        let line_text = text.lines().nth(position.line as usize).unwrap_or("");
+        let index = self.index.read().await;
+        Ok(compute_rename(line_text, position.character, &params.new_name, &index))
     }
 }
 

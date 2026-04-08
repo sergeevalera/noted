@@ -96,34 +96,28 @@ Then in Zed: **Cmd+Shift+P** → `zed: restart language server`.
 
 ## Semantic Token Styling
 
-Semantic token visual styling is controlled by the **theme**, not `settings.json`.
-To see heading and formatting colours, install the companion `noted-theme` extension
-(Phase 2 — not yet published) or add `semantic_token_rules` to your custom Zed theme file.
+Semantic tokens are styled through the active Zed **theme** (`syntax` section). The LSP
+maps Markdown elements to standard LSP token types:
 
-Example rules for the Verdant Garden dark theme:
+| Markdown element | LSP token type | Theme `syntax` key |
+|---|---|---|
+| Headings (H1–H6) | `keyword` | `keyword` |
+| Bold, italic, wikilinks, tags, etc. | `variable` | `variable` |
+| Frontmatter | `comment` | `comment` |
+| Punctuation (`#`, `**`, `[[`, `]]`) | `operator` | `operator` |
+
+To enable semantic tokens, add this to your Zed `settings.json`:
 
 ```json
-"semantic_token_rules": [
-  { "selector": "heading.h1", "style": { "color": "#8FBF6A", "font_weight": 800 } },
-  { "selector": "heading.h2", "style": { "color": "#7AAD58", "font_weight": 700 } },
-  { "selector": "heading.h3", "style": { "color": "#669B48", "font_weight": 600 } },
-  { "selector": "heading.h4", "style": { "color": "#548938", "font_weight": 500 } },
-  { "selector": "heading.h5", "style": { "color": "#447830", "font_weight": 500 } },
-  { "selector": "heading.h6", "style": { "color": "#3A6828", "font_weight": 400 } },
-  { "selector": "markup.bold", "style": { "font_weight": 700 } },
-  { "selector": "markup.italic", "style": { "font_style": "italic" } },
-  { "selector": "markup.strikethrough", "style": { "color": "#7A7C72" } },
-  { "selector": "markup.code", "style": { "color": "#E0B460" } },
-  { "selector": "markup.wikilink", "style": { "color": "#7CB5C4" } },
-  { "selector": "markup.wikilink.broken", "style": { "color": "#CC4444" } },
-  { "selector": "markup.tag", "style": { "color": "#D4A56A" } },
-  { "selector": "markup.callout", "style": { "color": "#C47D8A", "font_style": "italic" } },
-  { "selector": "markup.math", "style": { "color": "#B8DC94", "font_style": "italic" } },
-  { "selector": "markup.checkbox_done", "style": { "color": "#7A7C72" } },
-  { "selector": "comment.frontmatter", "style": { "color": "#545648", "font_style": "italic" } },
-  { "selector": "punctuation.markup_punctuation", "style": { "color": "#4A4A40" } }
-]
+"languages": {
+  "Noted Markdown": {
+    "semantic_tokens": "combined"
+  }
+}
 ```
+
+The companion `noted-theme` extension (Verdant Garden) is optimized for these token
+mappings but any Zed theme will work.
 
 ---
 
