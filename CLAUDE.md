@@ -12,10 +12,10 @@
 
 ## Project
 
-**noted** — a Zed IDE extension that turns Zed into a knowledge-base editor for
-Markdown. Supports wikilinks, callouts, tags, smart navigation, and live preview.
-Compatible with Obsidian vaults. Includes a custom Tree-sitter grammar, an LSP
-server written in Rust, and a companion theme.
+**noted** — a Zed IDE extension for Markdown knowledge bases. Supports wikilinks,
+callouts, tags, smart navigation, and live preview. Works with Obsidian vault file
+structure. Includes a custom Tree-sitter grammar, an LSP server written in Rust,
+and a companion theme.
 
 ## Repositories
 
@@ -270,14 +270,14 @@ revert the legend to use descriptive names and add per-element styling:
 - [x] 3.4.1 `[AGENT]` Preview command (code action + executeCommand)
 - [x] 3.4.2 `[HUMAN]` Phase 3 testing
 
-### Phase 4 (Publishing) — NOT STARTED
+### Phase 4 (Publishing) — IN PROGRESS
 
-- [ ] 4.1.1 `[AGENT]` CI workflow (.github/workflows/ci.yml)
-- [ ] 4.1.2 `[AGENT]` Release workflow (.github/workflows/release.yml)
-- [ ] 4.2.1 `[AGENT]` Auto-download LSP binary in extension
-- [ ] 4.3.1 `[AGENT]` README.md (final)
-- [ ] 4.3.2 `[AGENT]` CHANGELOG.md
-- [ ] 4.3.3 `[AGENT]` Theme README.md
+- [x] 4.1.1 `[AGENT]` CI workflow (.github/workflows/ci.yml)
+- [x] 4.1.2 `[AGENT]` Release workflow (.github/workflows/release.yml)
+- [x] 4.2.1 `[AGENT]` Auto-download LSP binary in extension
+- [x] 4.3.1 `[AGENT]` README.md (final)
+- [x] 4.3.2 `[AGENT]` CHANGELOG.md
+- [x] 4.3.3 `[AGENT]` Theme README.md
 - [ ] 4.4.1 `[HUMAN]` Publish to Zed extension registry
 
 ## LSP Capabilities Checklist

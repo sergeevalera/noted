@@ -1,112 +1,56 @@
 # noted
 
-A Zed IDE extension that turns the editor into an Obsidian-like environment for Markdown — wikilinks, callouts, tags, smart navigation, and live preview.
-
-> **Status:** Phase 1 complete (LSP core). Phase 2 in progress — semantic tokens, delta, and code actions done. 104 tests passing. Next: companion theme, rename, workspace symbols.
+A Zed IDE extension for Markdown knowledge bases — wikilinks, callouts, tags, smart navigation, and live preview. Works with Obsidian vault file structure.
 
 ---
 
 ## Features
 
-| Feature | Status | Phase |
-|---|---|---|
-| Wikilink completion (`[[`) | ✅ Working | 1 |
-| Go-to-definition on wikilinks | ✅ Working | 1 |
-| Broken link diagnostics | ✅ Working | 1 |
-| Hover preview (title + snippet + tags) | ✅ Working | 1 |
-| Document symbols / outline | ✅ Working | 1 |
-| Vault indexer (scan on open, reindex on save) | ✅ Working | 1 |
-| Semantic tokens (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, math, frontmatter) | ✅ Working | 2 |
-| Semantic tokens delta (incremental updates) | ✅ Working | 2 |
-| Inlay hints (checkbox ✓/○) | ✅ Working | 2 |
-| Code actions (toggle checkbox, wrap bold/italic/strike/code/wikilink, heading level, insert callout/table, change callout type) | ✅ Working | 2 |
-| Companion theme (Verdant Garden dark + light) | 📋 Planned | 2 |
-| Rename (wikilink refactoring across files) | 📋 Planned | 2 |
-| Workspace symbols (search headings across vault) | 📋 Planned | 2 |
-| Tree-sitter grammar (wikilinks, callouts, tags, embeds, checkboxes) | ✅ Working | 1 |
-| Test vault (integration fixtures) | 📋 Planned | 1 |
-| Live preview (browser + WebSocket sync) | 📋 Planned | 3 |
+| Feature | Description |
+|---|---|
+| **Wikilink completion** | Type `[[` to autocomplete note names from your vault |
+| **Go-to-definition** | Cmd+click on `[[wikilink]]` to jump to the target file |
+| **Broken link diagnostics** | Unresolved wikilinks are underlined as errors |
+| **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count |
+| **Document symbols** | `Cmd+Shift+O` — hierarchical heading tree |
+| **Workspace symbols** | `Cmd+T` — search headings across all vault files |
+| **Rename** | F2 on a wikilink — renames the target across all files |
+| **Code actions** | `Cmd+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables |
+| **Semantic tokens** | Headings, bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter |
+| **Inlay hints** | `[x]` shows `✓`, `[ ]` shows `○` |
+| **Live preview** | `Cmd+.` → "Open Preview" — browser preview with live WebSocket sync |
+| **Vault indexer** | Scans on open, reindexes on save |
+| **Tree-sitter grammar** | Wikilinks, callouts, tags, embeds, checkboxes |
 
 ---
 
-## Trying the Plugin (Dev Mode)
+## Installation
 
-### Prerequisites
+### From Zed Extensions (when published)
 
-```bash
-# Rust toolchain
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup target add wasm32-wasip2
-```
+1. Open Zed → Extensions → search "Noted" → Install
+2. The LSP binary downloads automatically on first use
 
-### 1. Build the LSP binary
+### Dev Mode
 
 ```bash
+# Build the LSP binary
 cargo build --release -p noted-lsp
+
+# Set the path (add to ~/.zshrc or ~/.bashrc)
+export NOTED_LSP_PATH=/path/to/noted/target/release/noted-lsp
+
+# Install as dev extension in Zed
+# Cmd+Shift+P → "zed: install dev extension" → select this folder
 ```
-
-The binary will be at `target/release/noted-lsp`.
-
-### 2. Set the LSP path
-
-The extension finds the binary via an environment variable. Add to your shell profile (`.zshrc` / `.bashrc`):
-
-```bash
-export NOTED_LSP_PATH=/absolute/path/to/noted/target/release/noted-lsp
-```
-
-Replace `/absolute/path/to/noted` with the actual path to this repo. Then reload your shell or open a new terminal.
-
-### 3. Install as a dev extension in Zed
-
-1. Open Zed
-2. Open the Command Palette (`Cmd+Shift+P`)
-3. Run `zed: install dev extension`
-4. Select this repository folder
-
-The extension will appear in **Extensions** with a "Dev Extension" badge.
-
-### 4. Open a Markdown vault
-
-Open any directory that contains `.md` files as your workspace. You should see:
-
-- **Wikilinks** `[[note-name]]` — type `[[` to get completions, hover for a preview, Cmd+click to jump
-- **Broken links** underlined in red (after the vault finishes indexing)
-- **Outline panel** (`Cmd+Shift+O`) — hierarchical heading tree
-- **Inlay hints** — `- [x]` shows `✓`, `- [ ]` shows `○` after the bracket
-- **Semantic tokens** — headings (H1–H6), bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter (requires companion theme)
-- **Code actions** (`Ctrl+.`) — toggle checkboxes, wrap selection in bold/italic/strikethrough/code/wikilink, change heading level, insert callouts/tables, change callout type
-
-The vault is indexed on startup. Open the Zed log (`Cmd+Shift+P` → "Open Log") and look for:
-
-```
-noted-lsp started
-Vault indexed: N notes in X.Xms
-```
-
-### 5. Rebuilding after code changes
-
-```bash
-cargo build --release -p noted-lsp
-```
-
-Then in Zed: **Cmd+Shift+P** → `zed: restart language server`.
 
 ---
 
-## Semantic Token Styling
+## Setup
 
-Semantic tokens are styled through the active Zed **theme** (`syntax` section). The LSP
-maps Markdown elements to standard LSP token types:
+### Enable semantic tokens
 
-| Markdown element | LSP token type | Theme `syntax` key |
-|---|---|---|
-| Headings (H1–H6) | `keyword` | `keyword` |
-| Bold, italic, wikilinks, tags, etc. | `variable` | `variable` |
-| Frontmatter | `comment` | `comment` |
-| Punctuation (`#`, `**`, `[[`, `]]`) | `operator` | `operator` |
-
-To enable semantic tokens, add this to your Zed `settings.json`:
+Add to your Zed `settings.json`:
 
 ```json
 "languages": {
@@ -116,8 +60,50 @@ To enable semantic tokens, add this to your Zed `settings.json`:
 }
 ```
 
-The companion `noted-theme` extension (Verdant Garden) is optimized for these token
-mappings but any Zed theme will work.
+Semantic tokens are styled through the active Zed theme's `syntax` section.
+Any Zed theme will provide basic highlighting (headings, bold, code, etc.).
+
+### Companion theme
+
+Install [Verdant Garden](https://github.com/sergeevalera/noted-theme) — a dark/light theme designed for comfortable Markdown reading and writing. Optimized for the Noted extension's semantic token mappings.
+
+> **Note:** Zed currently does not support custom semantic token types — only standard LSP types
+> (keyword, variable, string, comment, operator). This means all headings share the same color
+> regardless of level, and all markup (bold, italic, wikilinks, tags) shares another color.
+> Fine-grained per-element styling will be possible when Zed adds custom token type support.
+
+---
+
+## Usage
+
+Open any directory with `.md` files as your workspace. The vault is indexed on startup.
+
+### Wikilinks
+
+- Type `[[` to get completions from the vault index
+- Hover over `[[note]]` for a preview (title + first paragraph + tags + backlinks)
+- Cmd+click to jump to the target file
+- F2 to rename — updates all references across the vault
+
+### Code actions (`Cmd+.`)
+
+- Toggle checkboxes (`[x]` ↔ `[ ]`)
+- Wrap selection in **bold**, *italic*, ~~strikethrough~~, `code`, `[[wikilink]]`
+- Change heading level
+- Insert callout or table
+- Change callout type
+- Open live preview
+
+### Live preview
+
+1. `Cmd+.` on any line → "Open Preview"
+2. Copy the URL from the notification
+3. Open in browser — updates live as you type
+
+### Outline
+
+- `Cmd+Shift+O` — document symbols (heading tree)
+- `Cmd+T` — workspace symbols (search headings across all files)
 
 ---
 
@@ -127,55 +113,49 @@ mappings but any Zed theme will work.
 
 ```
 noted/
-├── src/lib.rs                        # Zed extension (WASM) — locates and launches LSP
+├── src/lib.rs                        # Zed extension (WASM) — locates/downloads LSP
 ├── extension.toml                    # Extension manifest
-├── Cargo.toml                        # Workspace root + extension crate
-├── languages/noted/            # Language definition for Zed
+├── languages/noted/                  # Language definition for Zed
 │   ├── config.toml                   # File types, bracket pairs
 │   ├── highlights.scm                # Tree-sitter highlight queries
 │   ├── injections.scm                # Fenced code block language injection
-│   ├── outline.scm                   # Outline panel node queries
+│   ├── outline.scm                   # Outline panel queries
 │   └── folds.scm                     # Code folding queries
-├── grammars/noted/ # Custom Tree-sitter grammar
-│   ├── grammar.js                    # Grammar rules (wikilinks, callouts, tags, …)
+├── grammars/noted/                   # Custom Tree-sitter grammar
+│   ├── grammar.js                    # Grammar rules
 │   ├── src/                          # Generated C parser
-│   └── test/corpus/                  # Grammar test cases
+│   └── test/corpus/                  # Grammar test cases (24 tests)
 └── crates/noted-lsp/                 # LSP server (native binary)
     └── src/
         ├── main.rs                   # Server state, handler dispatch
-        ├── code_actions.rs           # Code actions (checkbox, wrap, heading, callout)
+        ├── code_actions.rs           # Code actions
         ├── completion.rs             # Wikilink completion
         ├── definition.rs             # Go-to-definition
         ├── diagnostics.rs            # Broken link diagnostics
         ├── hover.rs                  # Note preview hover
         ├── inlay_hints.rs            # Checkbox inlay hints
+        ├── preview.rs                # HTTP + WebSocket preview server
+        ├── render.rs                 # MD → HTML renderer
+        ├── rename.rs                 # Rename wikilinks across files
         ├── semantic_tokens.rs        # Semantic token encoding
-        ├── symbols.rs                # Document symbol / outline
+        ├── symbols.rs                # Document symbols
+        ├── workspace_symbols.rs      # Workspace symbols
         └── vault/                    # Vault index
             ├── index.rs              # VaultIndex, resolve_wikilink
-            ├── parser.rs             # Note parsing (headings, links, tags)
+            ├── parser.rs             # Note parsing
             └── scanner.rs            # Vault directory scanning
 ```
 
-### Build & check
+### Build & test
 
 ```bash
-# Run all tests (104 tests)
-cargo test -p noted-lsp
-
-# Build release binary
-cargo build --release -p noted-lsp
-
-# Lint
+cargo test -p noted-lsp              # 142 unit tests
+cargo build --release -p noted-lsp   # Build release binary
 cargo clippy -p noted-lsp -- -D warnings
-
-# Check extension WASM target compiles
-cargo check -p noted --target wasm32-wasip2
+cargo check -p noted --target wasm32-wasip2  # Check WASM extension
 ```
 
 ### Tree-sitter grammar
-
-The grammar (`grammar.js`) covers wikilinks, embeds, tags, callouts, checkboxes, headings, and fenced code blocks. The generated C parser is committed in `grammars/noted/src/`.
 
 After modifying `grammar.js`:
 
@@ -185,11 +165,16 @@ tree-sitter generate
 tree-sitter test    # 24 corpus tests
 ```
 
-Then commit the updated `src/parser.c` and `src/tree_sitter/parser.h`.
+Commit the updated `src/parser.c` and `src/tree_sitter/parser.h`.
+
+---
+
+## License
+
+MIT
 
 ---
 
 ## Contributing
 
 See [CLAUDE.md](./CLAUDE.md) for architecture details and coding conventions.
-Full implementation plan: [zed-md-wysiwyg-spec.md](./zed-md-wysiwyg-spec.md).
