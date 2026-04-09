@@ -260,15 +260,15 @@ revert the legend to use descriptive names and add per-element styling:
 - [x] 2.5.1 `[AGENT]` Workspace symbols (search headings across all files)
 - [x] 2.6.1 `[HUMAN]` Phase 2 integration test
 
-### Phase 3 (Preview) — NOT STARTED
+### Phase 3 (Preview) — COMPLETE ✓
 
-- [ ] 3.1.1 `[AGENT]` HTTP server (axum, embedded in LSP)
-- [ ] 3.1.2 `[AGENT]` Preview HTML + WebSocket client
-- [ ] 3.2.1 `[AGENT]` MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math + mermaid)
-- [ ] 3.2.2 `[AGENT]` Preview CSS styles
-- [ ] 3.3.1 `[AGENT]` Live sync (didChange → WebSocket → browser)
-- [ ] 3.4.1 `[AGENT]` /preview slash command
-- [ ] 3.4.2 `[HUMAN]` Phase 3 testing
+- [x] 3.1.1 `[AGENT]` HTTP server (axum, embedded in LSP)
+- [x] 3.1.2 `[AGENT]` Preview HTML + WebSocket client
+- [x] 3.2.1 `[AGENT]` MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math)
+- [x] 3.2.2 `[AGENT]` Preview CSS styles
+- [x] 3.3.1 `[AGENT]` Live sync (didChange → WebSocket → browser)
+- [x] 3.4.1 `[AGENT]` Preview command (code action + executeCommand)
+- [x] 3.4.2 `[HUMAN]` Phase 3 testing
 
 ### Phase 4 (Publishing) — NOT STARTED
 
@@ -308,7 +308,7 @@ revert the legend to use descriptive names and add per-element styling:
 
 ## Testing
 
-### Unit tests (`cargo test -p noted-lsp`) — 118 tests, all passing
+### Unit tests (`cargo test -p noted-lsp`) — 142 tests, all passing
 
 - `vault/parser.rs`: heading/wikilink/tag/frontmatter extraction (8 tests)
 - `vault/index.rs`: build_index, resolve_wikilink (7 tests)

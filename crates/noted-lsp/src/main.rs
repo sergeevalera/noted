@@ -4,6 +4,8 @@ mod definition;
 mod diagnostics;
 mod hover;
 mod inlay_hints;
+mod preview;
+mod render;
 mod rename;
 mod semantic_tokens;
 mod symbols;
@@ -32,6 +34,8 @@ use semantic_tokens::{compute_semantic_tokens, compute_token_delta, tokens_to_fl
 use symbols::compute_document_symbols;
 use workspace_symbols::compute_workspace_symbols;
 use vault::{build_index, parse_note, scan_vault, VaultIndex};
+use preview::{start_preview_server, PreviewState};
+use render::render_markdown;
 
 struct NotedLsp {
     client: Client,
@@ -40,6 +44,12 @@ struct NotedLsp {
     vault_root: Arc<RwLock<Option<Utf8PathBuf>>>,
     /// Cached flat token data (5 u32 per token) for semantic tokens delta.
     token_cache: Arc<RwLock<HashMap<Url, Vec<u32>>>>,
+    /// Preview server state (started lazily on first preview request).
+    preview: PreviewState,
+    /// URI of the document currently being previewed (None = preview inactive).
+    preview_uri: Arc<RwLock<Option<Url>>>,
+    /// Address of the preview server (None = not started yet).
+    preview_addr: Arc<RwLock<Option<std::net::SocketAddr>>>,
     result_counter: Arc<AtomicU64>,
 }
 
@@ -50,6 +60,46 @@ impl NotedLsp {
 }
 
 impl NotedLsp {
+    /// If the preview is active and the given URI matches, re-render and push to browser.
+    async fn maybe_update_preview(&self, uri: &Url, text: &str) {
+        let preview_uri = self.preview_uri.read().await;
+        if preview_uri.as_ref() != Some(uri) {
+            return;
+        }
+        drop(preview_uri);
+        let html = render_markdown(text);
+        self.preview.update(html).await;
+    }
+
+    /// Start the preview server (if not already running) and set the preview URI.
+    /// Returns the preview URL.
+    async fn start_preview(&self, uri: Url) -> String {
+        // Start server if needed
+        let mut addr_lock = self.preview_addr.write().await;
+        let addr = if let Some(addr) = *addr_lock {
+            addr
+        } else {
+            let addr = start_preview_server(self.preview.clone())
+                .await
+                .expect("failed to start preview server");
+            *addr_lock = Some(addr);
+            addr
+        };
+        drop(addr_lock);
+
+        // Set the preview URI
+        *self.preview_uri.write().await = Some(uri.clone());
+
+        // Push initial content
+        let documents = self.documents.read().await;
+        if let Some(text) = documents.get(&uri) {
+            let html = render_markdown(text);
+            self.preview.update(html).await;
+        }
+
+        format!("http://{}", addr)
+    }
+
     /// Publish broken-link diagnostics for a single document.
     async fn publish_diagnostics_for(&self, uri: Url, text: &str) {
         let index = self.index.read().await;
@@ -154,6 +204,10 @@ impl LanguageServer for NotedLsp {
                     prepare_provider: Some(true),
                     work_done_progress_options: Default::default(),
                 })),
+                execute_command_provider: Some(ExecuteCommandOptions {
+                    commands: vec!["noted.openPreview".to_string()],
+                    work_done_progress_options: Default::default(),
+                }),
                 ..Default::default()
             },
             ..Default::default()
@@ -173,7 +227,8 @@ impl LanguageServer for NotedLsp {
         let uri = params.text_document.uri.clone();
         let text = params.text_document.text.clone();
         self.documents.write().await.insert(uri.clone(), text.clone());
-        self.publish_diagnostics_for(uri, &text).await;
+        self.publish_diagnostics_for(uri.clone(), &text).await;
+        self.maybe_update_preview(&uri, &text).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -181,7 +236,8 @@ impl LanguageServer for NotedLsp {
         if let Some(change) = params.content_changes.into_iter().last() {
             let text = change.text.clone();
             self.documents.write().await.insert(uri.clone(), text.clone());
-            self.publish_diagnostics_for(uri, &text).await;
+            self.publish_diagnostics_for(uri.clone(), &text).await;
+            self.maybe_update_preview(&uri, &text).await;
         }
     }
 
@@ -333,8 +389,42 @@ impl LanguageServer for NotedLsp {
             None => return Ok(None),
         };
         drop(documents);
-        let actions = compute_code_actions(&uri, params.range, &text);
-        if actions.is_empty() { Ok(None) } else { Ok(Some(actions)) }
+        let mut actions = compute_code_actions(&uri, params.range, &text);
+
+        // Add "Open Preview" command action
+        actions.push(CodeActionOrCommand::Command(Command {
+            title: "Open Preview".to_string(),
+            command: "noted.openPreview".to_string(),
+            arguments: Some(vec![serde_json::Value::String(uri.to_string())]),
+        }));
+
+        Ok(Some(actions))
+    }
+
+    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<serde_json::Value>> {
+        if params.command == "noted.openPreview" {
+            // The first argument is the document URI
+            let uri = params.arguments.first()
+                .and_then(|v| v.as_str())
+                .and_then(|s| Url::parse(s).ok());
+
+            let Some(uri) = uri else {
+                self.client.show_message(MessageType::ERROR, "No document URI provided").await;
+                return Ok(None);
+            };
+
+            let url = self.start_preview(uri).await;
+            self.client
+                .show_message(MessageType::INFO, format!("Preview: {}", url))
+                .await;
+            self.client
+                .log_message(MessageType::INFO, format!("Preview server started at {}", url))
+                .await;
+
+            return Ok(Some(serde_json::Value::String(url)));
+        }
+
+        Ok(None)
     }
 
     async fn prepare_rename(
@@ -394,6 +484,9 @@ async fn main() {
         vault_root: Arc::new(RwLock::new(None)),
         token_cache: Arc::new(RwLock::new(HashMap::new())),
         result_counter: Arc::new(AtomicU64::new(0)),
+        preview: PreviewState::new(),
+        preview_uri: Arc::new(RwLock::new(None)),
+        preview_addr: Arc::new(RwLock::new(None)),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
