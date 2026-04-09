@@ -292,7 +292,7 @@ revert the legend to use descriptive names and add per-element styling:
 - [x] `textDocument/hover` (note title + first paragraph + tags + backlink count)
 - [x] `textDocument/documentSymbol` (hierarchical heading tree)
 
-### Phase 2 (Visual) — in progress
+### Phase 2 (Visual) — COMPLETE ✓
 
 - [x] `textDocument/semanticTokens/full` (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter — mapped to standard LSP types: keyword, variable, string, comment, operator)
 - [x] `textDocument/semanticTokens/full/delta` (prefix/suffix diff; empty delta on unchanged file)
@@ -301,10 +301,12 @@ revert the legend to use descriptive names and add per-element styling:
 - [x] `textDocument/rename` + `prepareRename`
 - [x] `workspace/symbol`
 
-### Phase 3 (Preview)
+### Phase 3 (Preview) — COMPLETE ✓
 
-- [ ] Custom notification: `mdlive/previewUrl` (send preview server URL)
-- [ ] Custom notification: `mdlive/cursorPosition` (cursor sync)
+- [x] `workspace/executeCommand` (`noted.openPreview` — start preview server, return URL)
+- [x] Preview HTTP server (axum, `127.0.0.1`, random port)
+- [x] WebSocket live sync (`didChange` → render → broadcast)
+- [x] MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math + tables)
 
 ## Testing
 
