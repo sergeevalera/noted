@@ -186,6 +186,55 @@ with backgrounds and icons, rendering tables as grids, rendering formulas.
 **Pros:** Noticeably closer to WYSIWYG experience without custom rendering, publishes as a standard extension.
 **Cons:** Limited visual control, no inline images, no proportional fonts, no font size differences.
 
+#### B.7. Extension-provided `semantic_token_rules.json` — Per-element styling
+
+**Discovery (April 2026):** Zed supports an extension-provided file `semantic_token_rules.json`
+placed alongside `config.toml` in the language directory. This file maps custom LSP semantic
+token types to theme `syntax` keys, eliminating the earlier limitation where custom token type
+names were silently ignored.
+
+**How it works:**
+
+1. The LSP declares a custom legend with descriptive token type names (`heading`, `markup`,
+   `punctuation`) instead of standard LSP names (`keyword`, `variable`, `operator`).
+2. The extension ships `languages/noted/semantic_token_rules.json` that tells Zed how to
+   resolve each custom type + modifier combination to a theme syntax key.
+3. The theme's `syntax` section provides the actual styling (color, weight, style).
+
+**Format:**
+
+```json
+[
+  { "token_type": "heading", "token_modifiers": ["h1"], "style": ["heading.h1", "heading", "title"] },
+  { "token_type": "markup", "token_modifiers": ["bold"], "style": ["markup.bold", "emphasis.strong"] },
+  { "token_type": "markup", "token_modifiers": ["wikilink"], "style": ["markup.wikilink", "link_text"] },
+  { "token_type": "punctuation", "token_modifiers": ["markup_punctuation"], "style": ["punctuation.markup_punctuation", "punctuation.special"] }
+]
+```
+
+The `style` array is a **fallback chain** — Zed tries each theme syntax key left-to-right,
+using the first one the active theme defines. This means:
+- With the companion Verdant Garden theme: each element gets its dedicated style
+  (e.g., `heading.h1` → bright green + font_weight 800)
+- With any other Zed theme: falls back to standard captures
+  (e.g., `title` → whatever the theme uses for titles)
+
+**What this enables vs standard token mapping:**
+
+| Element | Before (standard types) | After (custom types + rules) |
+|---|---|---|
+| H1 heading | `keyword` color (shared) | `heading.h1` — bright green, weight 800 |
+| H3 heading | `keyword` color (shared) | `heading.h3` — medium green, weight 600 |
+| Bold text | `variable` color (shared) | `markup.bold` — font_weight 700 |
+| Italic text | `variable` color (shared) | `markup.italic` — font_style italic |
+| Wikilink | `variable` color (shared) | `markup.wikilink` — cyan/teal |
+| Broken link | `variable` color (shared) | `markup.wikilink.broken` — red |
+| Tag | `variable` color (shared) | `markup.tag` — gold with background |
+| MD punctuation | `operator` color (shared) | `punctuation.markup_punctuation` — very dimmed |
+
+**Precedent:** The Rust extension uses this mechanism for the custom `lifetime` token type,
+proving Zed correctly reads the LSP's declared legend and resolves custom types via the rules file.
+
 ### Strategy C: "BAML Trick — LSP + localhost server" — Experimental
 
 Inspired by the BAML extension for Zed, which embeds a web interface via LSP:

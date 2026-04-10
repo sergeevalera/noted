@@ -37,11 +37,11 @@ pub const MOD_MARKUP_PUNCTUATION: u32 = 1 << 19;
 pub fn legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: vec![
-            SemanticTokenType::new("keyword"),  // heading
-            SemanticTokenType::new("variable"), // markup
+            SemanticTokenType::new("heading"),
+            SemanticTokenType::new("markup"),
             SemanticTokenType::new("string"),
             SemanticTokenType::new("comment"),
-            SemanticTokenType::new("operator"), // punctuation
+            SemanticTokenType::new("punctuation"),
         ],
         token_modifiers: vec![
             SemanticTokenModifier::new("h1"),

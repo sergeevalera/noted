@@ -81,7 +81,8 @@ noted/
 │   ├── highlights.scm          # Syntax highlighting queries (inactive without grammar)
 │   ├── injections.scm          # Code block language injection
 │   ├── outline.scm             # Outline panel queries
-│   └── folds.scm               # Code folding queries
+│   ├── folds.scm               # Code folding queries
+│   └── semantic_token_rules.json # Maps custom LSP token types to theme syntax keys
 ├── grammars/noted/
 │   ├── grammar.js              # Tree-sitter grammar definition
 │   ├── src/                    # Generated C parser (parser.c, tree_sitter/parser.h)
@@ -141,84 +142,39 @@ noted/
 
 ## Semantic Token Types (for LSP)
 
-Full implementation complete (Phase 2 step 2.1.1 + 2.1.2):
+Full implementation complete (Phase 2 step 2.1.1 + 2.1.2).
 
-**Zed limitation:** Zed only recognizes **standard LSP semantic token types**. Custom
-type names are silently ignored. The LSP therefore maps tokens to standard types:
+The LSP uses **custom token type names** mapped to theme syntax keys via
+`languages/noted/semantic_token_rules.json`. This file tells Zed how to resolve
+custom types to theme styles, with fallback chains for compatibility with non-Noted themes.
 
-| LSP type (legend) | Used for | Theme `syntax` key |
+**LSP legend (custom token types):**
+
+| LSP type (legend) | Used for | Rules file maps to (primary) |
 |---|---|---|
-| `keyword` | headings (H1–H6) | `keyword` |
-| `variable` | markup (bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math) | `variable` |
-| `string` | links, link text | `string` |
-| `comment` | frontmatter | `comment` |
-| `operator` | punctuation markers (`#`, `**`, `[[`, `]]`, etc.) | `operator` |
+| `heading` | headings (H1–H6) | `heading.h1`–`heading.h6` |
+| `markup` | inline formatting (bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math) | `markup.bold`, `markup.italic`, etc. |
+| `string` | links, link text | `string.link` |
+| `comment` | frontmatter | `comment.frontmatter` |
+| `punctuation` | MD syntax (`#`, `**`, `[[`, `]]`, etc.) | `punctuation.markup_punctuation` |
 
-**Token modifiers** (internal, used for computation logic and delta caching):
+**Token modifiers** (used for both rules matching and delta caching):
 `h1`–`h6`, `bold`, `italic`, `strikethrough`, `code`, `link`, `wikilink`, `broken`,
 `tag`, `callout`, `checkbox_done`, `checkbox_todo`, `math`, `frontmatter`,
 `markup_punctuation`
+
+**How styling works:**
+1. LSP emits tokens with custom type + modifier bitmask
+2. `semantic_token_rules.json` matches type + modifiers → theme `syntax` key fallback chain
+3. Theme's `syntax` section provides actual color/weight/style
+4. Fallback keys ensure basic styling even with non-Noted themes
 
 Delta caching: per-document flat u32 token cache; unchanged files return empty delta.
 Broken wikilinks flagged with `broken` modifier only after vault index is populated.
 
 **User setup:** Add `"semantic_tokens": "combined"` to `settings.json` under
 `languages > Noted Markdown` (default is `"off"`, which disables semantic tokens).
-Styling comes from the theme's `syntax` section — no `semantic_token_rules` needed.
-
-### Future: Custom Token Types (when Zed adds support)
-
-When Zed supports custom semantic token types and modifiers in `semantic_token_rules`,
-revert the legend to use descriptive names and add per-element styling:
-
-**Target legend (restore in `semantic_tokens.rs`):**
-
-| Token type | Token modifier | Element |
-|---|---|---|
-| `heading` | `h1`–`h6` | Heading levels with distinct colors/weights |
-| `markup` | `bold` | Bold text (`**...**`) — font_weight: bold |
-| `markup` | `italic` | Italic text (`*...*`) — font_style: italic |
-| `markup` | `strikethrough` | Strikethrough (`~~...~~`) — dimmed color |
-| `markup` | `code` | Inline code (`` `...` ``) — monospace, gold/amber |
-| `markup` | `wikilink` | Wikilink target (`[[...]]`) — cyan/teal, underline |
-| `markup` | `wikilink`, `broken` | Broken wikilink — red, underline |
-| `markup` | `tag` | Tag (`#tag`) — brown/gold, subtle background |
-| `markup` | `callout` | Callout header (`> [!type]`) — pink, italic |
-| `markup` | `checkbox_done` | Checked `[x]` — dimmed |
-| `markup` | `checkbox_todo` | Unchecked `[ ]` — normal |
-| `markup` | `math` | Math (`$...$`) — green, italic |
-| `comment` | `frontmatter` | YAML frontmatter — dimmed, italic |
-| `punctuation` | `markup_punctuation` | Markdown delimiters — very dimmed |
-| `string` | `link` | Standard links `[text](url)` |
-
-**How to migrate:**
-
-1. In `semantic_tokens.rs`, change `legend()` token types back from standard names
-   (`keyword`, `variable`, `operator`) to custom names (`heading`, `markup`, `punctuation`)
-2. Add `semantic_token_rules` to the companion theme or recommend in `settings.json`:
-   ```json
-   "semantic_token_rules": [
-     { "token_type": "heading", "token_modifiers": ["h1"], "foreground_color": "#8FBF6A", "font_weight": "bold" },
-     { "token_type": "heading", "token_modifiers": ["h2"], "foreground_color": "#7AAD58", "font_weight": "bold" },
-     { "token_type": "heading", "token_modifiers": ["h3"], "foreground_color": "#669B48", "font_weight": "bold" },
-     { "token_type": "heading", "token_modifiers": ["h4"], "foreground_color": "#548938" },
-     { "token_type": "heading", "token_modifiers": ["h5"], "foreground_color": "#447830" },
-     { "token_type": "heading", "token_modifiers": ["h6"], "foreground_color": "#3A6828" },
-     { "token_type": "markup", "token_modifiers": ["bold"], "font_weight": "bold" },
-     { "token_type": "markup", "token_modifiers": ["italic"], "font_style": "italic" },
-     { "token_type": "markup", "token_modifiers": ["strikethrough"], "foreground_color": "#7A7C72" },
-     { "token_type": "markup", "token_modifiers": ["code"], "foreground_color": "#E0B460" },
-     { "token_type": "markup", "token_modifiers": ["wikilink"], "foreground_color": "#7CB5C4" },
-     { "token_type": "markup", "token_modifiers": ["broken"], "foreground_color": "#CC4444" },
-     { "token_type": "markup", "token_modifiers": ["tag"], "foreground_color": "#D4A56A" },
-     { "token_type": "markup", "token_modifiers": ["callout"], "foreground_color": "#C47D8A", "font_style": "italic" },
-     { "token_type": "markup", "token_modifiers": ["math"], "foreground_color": "#B8DC94", "font_style": "italic" },
-     { "token_type": "comment", "token_modifiers": ["frontmatter"], "foreground_color": "#545648", "font_style": "italic" },
-     { "token_type": "punctuation", "token_modifiers": ["markup_punctuation"], "foreground_color": "#4A4A40" }
-   ]
-   ```
-3. Test: verify each element gets its distinct color
-4. Track Zed issue: watch for custom semantic token support in Zed changelogs
+No `semantic_token_rules` in settings.json needed — the extension ships its own rules file.
 
 ## Execution Plan Progress
 
@@ -377,14 +333,13 @@ vault/
 3. **Tree-sitter conflict:** Zed already has a built-in `tree-sitter-markdown`.
    Our grammar registers as a separate language (`Noted Markdown`), not overwriting standard Markdown.
 
-4. **Semantic tokens + Zed:** Zed only recognizes standard LSP semantic token types
-   (keyword, variable, string, comment, operator, etc.). Custom type names are silently
-   ignored — never use custom names in the legend. The LSP maps heading→keyword,
-   markup→variable, punctuation→operator. Styling comes from the theme's `syntax`
-   section. User must set `"semantic_tokens": "combined"` in `settings.json` under
-   `languages > Noted Markdown` (default is `"off"`). `semantic_token_rules` in
-   settings.json does NOT work for custom types. Theme JSON does NOT support
-   `semantic_token_rules` at all.
+4. **Semantic tokens + Zed:** Custom LSP token type names require a
+   `semantic_token_rules.json` file in the language directory to map them to theme
+   `syntax` keys. Without this file, custom names are silently ignored. The extension
+   ships `languages/noted/semantic_token_rules.json` with fallback chains for
+   compatibility. User must set `"semantic_tokens": "combined"` in `settings.json`
+   under `languages > Noted Markdown` (default is `"off"`). No user-level
+   `semantic_token_rules` needed.
 
 5. **LSP binary distribution:** Zed extensions cannot include binaries.
    Dev mode: set `NOTED_LSP_PATH` env var. Phase 4: auto-download from GitHub Releases.
