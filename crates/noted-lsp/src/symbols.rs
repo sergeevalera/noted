@@ -80,15 +80,31 @@ fn make_symbol(h: &HeadingInfo, section_end: u32, children: Vec<DocumentSymbol>)
         deprecated: None,
         // Full section range: from heading start to end of section
         range: Range {
-            start: Position { line: h.line, character: 0 },
-            end: Position { line: section_end, character: u32::MAX },
+            start: Position {
+                line: h.line,
+                character: 0,
+            },
+            end: Position {
+                line: section_end,
+                character: u32::MAX,
+            },
         },
         // Selection: just the heading line itself
         selection_range: Range {
-            start: Position { line: h.line, character: 0 },
-            end: Position { line: h.line, character: heading_end_char },
+            start: Position {
+                line: h.line,
+                character: 0,
+            },
+            end: Position {
+                line: h.line,
+                character: heading_end_char,
+            },
         },
-        children: if children.is_empty() { None } else { Some(children) },
+        children: if children.is_empty() {
+            None
+        } else {
+            Some(children)
+        },
     }
 }
 
@@ -207,7 +223,13 @@ mod tests {
         let text = "# Hello World\n\ntext\n";
         let syms = compute_document_symbols(text);
         let sr = syms[0].selection_range;
-        assert_eq!(sr.start, Position { line: 0, character: 0 });
+        assert_eq!(
+            sr.start,
+            Position {
+                line: 0,
+                character: 0
+            }
+        );
         assert_eq!(sr.end.line, 0);
     }
 

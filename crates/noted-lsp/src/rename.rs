@@ -13,8 +13,14 @@ pub fn prepare_rename(line_text: &str, line: u32, character: u32) -> Option<Prep
     }
     Some(PrepareRenameResponse::RangeWithPlaceholder {
         range: Range {
-            start: Position { line, character: start_col },
-            end: Position { line, character: end_col },
+            start: Position {
+                line,
+                character: start_col,
+            },
+            end: Position {
+                line,
+                character: end_col,
+            },
         },
         placeholder: target.to_string(),
     })
@@ -55,8 +61,14 @@ pub fn compute_rename(
             let end_col = start_col + link.target.len() as u32;
             changes.entry(uri).or_default().push(TextEdit {
                 range: Range {
-                    start: Position { line: link.line, character: start_col },
-                    end: Position { line: link.line, character: end_col },
+                    start: Position {
+                        line: link.line,
+                        character: start_col,
+                    },
+                    end: Position {
+                        line: link.line,
+                        character: end_col,
+                    },
                 },
                 new_text: new_name.to_string(),
             });
@@ -82,7 +94,9 @@ fn find_wikilink_target_at(line_text: &str, character: u32) -> Option<(&str, u32
     while let Some(rel_open) = line_text[search_from..].find("[[") {
         let open_pos = search_from + rel_open;
         let after_open = &line_text[open_pos..];
-        let Some(rel_close) = after_open.find("]]") else { break };
+        let Some(rel_close) = after_open.find("]]") else {
+            break;
+        };
         let close_pos = open_pos + rel_close;
 
         if cursor >= open_pos && cursor <= close_pos + 1 {
@@ -106,14 +120,13 @@ fn find_wikilink_target_at(line_text: &str, character: u32) -> Option<(&str, u32
     None
 }
 
-
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         let entries: Vec<_> = notes
@@ -132,8 +145,20 @@ mod tests {
         match resp.unwrap() {
             PrepareRenameResponse::RangeWithPlaceholder { range, placeholder } => {
                 assert_eq!(placeholder, "alice");
-                assert_eq!(range.start, Position { line: 0, character: 6 });
-                assert_eq!(range.end, Position { line: 0, character: 11 });
+                assert_eq!(
+                    range.start,
+                    Position {
+                        line: 0,
+                        character: 6
+                    }
+                );
+                assert_eq!(
+                    range.end,
+                    Position {
+                        line: 0,
+                        character: 11
+                    }
+                );
             }
             _ => panic!("expected RangeWithPlaceholder"),
         }
@@ -234,5 +259,4 @@ mod tests {
             }
         }
     }
-
 }

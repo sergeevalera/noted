@@ -24,7 +24,12 @@ pub fn compute_hover(line_text: &str, character: u32, index: &VaultIndex) -> Opt
     // Metadata footer
     let mut footer: Vec<String> = Vec::new();
     if !note.tags.is_empty() {
-        let tags = note.tags.iter().map(|t| format!("#{}", t.name)).collect::<Vec<_>>().join(" ");
+        let tags = note
+            .tags
+            .iter()
+            .map(|t| format!("#{}", t.name))
+            .collect::<Vec<_>>()
+            .join(" ");
         footer.push(format!("**Tags:** {}", tags));
     }
     let backlink_count = index.backlinks.get(&path).map(|v| v.len()).unwrap_or(0);
@@ -46,17 +51,16 @@ pub fn compute_hover(line_text: &str, character: u32, index: &VaultIndex) -> Opt
 
 /// Find the wikilink target at `character` in `line_text`.
 /// Returns `(target_string, byte_span)` or `None` if not in a wikilink.
-fn find_wikilink_at(
-    line_text: &str,
-    character: u32,
-) -> Option<(String, std::ops::Range<usize>)> {
+fn find_wikilink_at(line_text: &str, character: u32) -> Option<(String, std::ops::Range<usize>)> {
     let cursor = (character as usize).min(line_text.len());
     let mut search_from = 0;
 
     while let Some(rel_open) = line_text[search_from..].find("[[") {
         let open_pos = search_from + rel_open;
         let after_open = &line_text[open_pos..];
-        let Some(rel_close) = after_open.find("]]") else { break };
+        let Some(rel_close) = after_open.find("]]") else {
+            break;
+        };
         let close_pos = open_pos + rel_close;
 
         if cursor >= open_pos && cursor <= close_pos + 1 {
@@ -130,8 +134,8 @@ fn skip_frontmatter(content: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         let entries = notes
@@ -184,7 +188,10 @@ mod tests {
     #[test]
     fn test_snippet_simple_paragraph() {
         let content = "# Heading\n\nFirst paragraph text.\nContinued here.\n\nSecond paragraph.\n";
-        assert_eq!(body_snippet(content), "First paragraph text.\nContinued here.");
+        assert_eq!(
+            body_snippet(content),
+            "First paragraph text.\nContinued here."
+        );
     }
 
     #[test]
@@ -213,7 +220,9 @@ mod tests {
         let index = make_index(&[("/vault/alice.md", "# Alice\n\nHello world.\n")]);
         let hover = compute_hover("See [[alice]] here", 8, &index);
         assert!(hover.is_some());
-        let HoverContents::Markup(mc) = hover.unwrap().contents else { panic!() };
+        let HoverContents::Markup(mc) = hover.unwrap().contents else {
+            panic!()
+        };
         assert!(mc.value.contains("## Alice"));
     }
 
@@ -233,7 +242,9 @@ mod tests {
     fn test_hover_shows_tags() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n\nTagged with #person.\n")]);
         let hover = compute_hover("[[alice]]", 3, &index).unwrap();
-        let HoverContents::Markup(mc) = hover.contents else { panic!() };
+        let HoverContents::Markup(mc) = hover.contents else {
+            panic!()
+        };
         assert!(mc.value.contains("#person"));
     }
 }

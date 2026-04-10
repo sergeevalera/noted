@@ -5,8 +5,8 @@ mod diagnostics;
 mod hover;
 mod inlay_hints;
 mod preview;
-mod render;
 mod rename;
+mod render;
 mod semantic_tokens;
 mod symbols;
 mod vault;
@@ -29,13 +29,13 @@ use definition::find_definition;
 use diagnostics::compute_diagnostics;
 use hover::compute_hover;
 use inlay_hints::compute_inlay_hints;
+use preview::{start_preview_server, PreviewState};
 use rename::{compute_rename, prepare_rename};
+use render::render_markdown;
 use semantic_tokens::{compute_semantic_tokens, compute_token_delta, tokens_to_flat};
 use symbols::compute_document_symbols;
-use workspace_symbols::compute_workspace_symbols;
 use vault::{build_index, parse_note, scan_vault, VaultIndex};
-use preview::{start_preview_server, PreviewState};
-use render::render_markdown;
+use workspace_symbols::compute_workspace_symbols;
 
 struct NotedLsp {
     client: Client,
@@ -55,7 +55,9 @@ struct NotedLsp {
 
 impl NotedLsp {
     fn next_result_id(&self) -> String {
-        self.result_counter.fetch_add(1, Ordering::Relaxed).to_string()
+        self.result_counter
+            .fetch_add(1, Ordering::Relaxed)
+            .to_string()
     }
 }
 
@@ -146,7 +148,9 @@ impl NotedLsp {
 #[tower_lsp::async_trait]
 impl LanguageServer for NotedLsp {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        let has_sem = params.capabilities.text_document
+        let has_sem = params
+            .capabilities
+            .text_document
             .as_ref()
             .and_then(|td| td.semantic_tokens.as_ref())
             .is_some();
@@ -216,7 +220,12 @@ impl LanguageServer for NotedLsp {
 
     async fn initialized(&self, _: InitializedParams) {
         tracing::info!("noted-lsp started");
-        self.client.log_message(MessageType::INFO, "noted-lsp started (semantic tokens enabled)").await;
+        self.client
+            .log_message(
+                MessageType::INFO,
+                "noted-lsp started (semantic tokens enabled)",
+            )
+            .await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -226,7 +235,10 @@ impl LanguageServer for NotedLsp {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri.clone();
         let text = params.text_document.text.clone();
-        self.documents.write().await.insert(uri.clone(), text.clone());
+        self.documents
+            .write()
+            .await
+            .insert(uri.clone(), text.clone());
         self.publish_diagnostics_for(uri.clone(), &text).await;
         self.maybe_update_preview(&uri, &text).await;
     }
@@ -235,7 +247,10 @@ impl LanguageServer for NotedLsp {
         let uri = params.text_document.uri.clone();
         if let Some(change) = params.content_changes.into_iter().last() {
             let text = change.text.clone();
-            self.documents.write().await.insert(uri.clone(), text.clone());
+            self.documents
+                .write()
+                .await
+                .insert(uri.clone(), text.clone());
             self.publish_diagnostics_for(uri.clone(), &text).await;
             self.maybe_update_preview(&uri, &text).await;
         }
@@ -287,7 +302,11 @@ impl LanguageServer for NotedLsp {
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
         let items = compute_completions(position.line, line_text, position.character, &index);
-        if items.is_empty() { Ok(None) } else { Ok(Some(CompletionResponse::Array(items))) }
+        if items.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(CompletionResponse::Array(items)))
+        }
     }
 
     async fn goto_definition(
@@ -304,7 +323,8 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
-        Ok(find_definition(line_text, position.character, &index).map(GotoDefinitionResponse::Scalar))
+        Ok(find_definition(line_text, position.character, &index)
+            .map(GotoDefinitionResponse::Scalar))
     }
 
     async fn document_symbol(
@@ -318,7 +338,11 @@ impl LanguageServer for NotedLsp {
         };
         drop(documents);
         let syms = compute_document_symbols(&text);
-        if syms.is_empty() { Ok(None) } else { Ok(Some(DocumentSymbolResponse::Nested(syms))) }
+        if syms.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(DocumentSymbolResponse::Nested(syms)))
+        }
     }
 
     async fn semantic_tokens_full(
@@ -335,7 +359,12 @@ impl LanguageServer for NotedLsp {
         let index = self.index.read().await;
         let tokens = compute_semantic_tokens(&text, &index);
         drop(index);
-        self.client.log_message(MessageType::INFO, format!("semantic_tokens_full: {} tokens", tokens.len())).await;
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!("semantic_tokens_full: {} tokens", tokens.len()),
+            )
+            .await;
         let flat = tokens_to_flat(&tokens);
         let result_id = self.next_result_id();
         self.token_cache.write().await.insert(uri, flat);
@@ -365,10 +394,12 @@ impl LanguageServer for NotedLsp {
         let old_flat = cache.get(&uri).cloned().unwrap_or_default();
         let edits = compute_token_delta(&old_flat, &new_flat);
         cache.insert(uri, new_flat);
-        Ok(Some(SemanticTokensFullDeltaResult::TokensDelta(SemanticTokensDelta {
-            result_id: Some(result_id),
-            edits,
-        })))
+        Ok(Some(SemanticTokensFullDeltaResult::TokensDelta(
+            SemanticTokensDelta {
+                result_id: Some(result_id),
+                edits,
+            },
+        )))
     }
 
     async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
@@ -401,15 +432,22 @@ impl LanguageServer for NotedLsp {
         Ok(Some(actions))
     }
 
-    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<serde_json::Value>> {
+    async fn execute_command(
+        &self,
+        params: ExecuteCommandParams,
+    ) -> Result<Option<serde_json::Value>> {
         if params.command == "noted.openPreview" {
             // The first argument is the document URI
-            let uri = params.arguments.first()
+            let uri = params
+                .arguments
+                .first()
                 .and_then(|v| v.as_str())
                 .and_then(|s| Url::parse(s).ok());
 
             let Some(uri) = uri else {
-                self.client.show_message(MessageType::ERROR, "No document URI provided").await;
+                self.client
+                    .show_message(MessageType::ERROR, "No document URI provided")
+                    .await;
                 return Ok(None);
             };
 
@@ -418,7 +456,10 @@ impl LanguageServer for NotedLsp {
                 .show_message(MessageType::INFO, format!("Preview: {}", url))
                 .await;
             self.client
-                .log_message(MessageType::INFO, format!("Preview server started at {}", url))
+                .log_message(
+                    MessageType::INFO,
+                    format!("Preview server started at {}", url),
+                )
                 .await;
 
             return Ok(Some(serde_json::Value::String(url)));
@@ -449,7 +490,11 @@ impl LanguageServer for NotedLsp {
     ) -> Result<Option<Vec<SymbolInformation>>> {
         let index = self.index.read().await;
         let symbols = compute_workspace_symbols(&params.query, &index);
-        if symbols.is_empty() { Ok(None) } else { Ok(Some(symbols)) }
+        if symbols.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(symbols))
+        }
     }
 
     async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
@@ -463,7 +508,12 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
-        Ok(compute_rename(line_text, position.character, &params.new_name, &index))
+        Ok(compute_rename(
+            line_text,
+            position.character,
+            &params.new_name,
+            &index,
+        ))
     }
 }
 

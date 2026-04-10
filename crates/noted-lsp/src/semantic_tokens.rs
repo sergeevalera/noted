@@ -37,11 +37,11 @@ pub const MOD_MARKUP_PUNCTUATION: u32 = 1 << 19;
 pub fn legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: vec![
-            SemanticTokenType::new("keyword"),   // heading
-            SemanticTokenType::new("variable"),  // markup
+            SemanticTokenType::new("keyword"),  // heading
+            SemanticTokenType::new("variable"), // markup
             SemanticTokenType::new("string"),
             SemanticTokenType::new("comment"),
-            SemanticTokenType::new("operator"),  // punctuation
+            SemanticTokenType::new("operator"), // punctuation
         ],
         token_modifiers: vec![
             SemanticTokenModifier::new("h1"),
@@ -123,10 +123,22 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
 
         // ── Headings ─────────────────────────────────────────────────────────
         if let Some((hash_len, text_start)) = parse_heading(line) {
-            raw.push((ln, 0, hash_len as u32, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                0,
+                hash_len as u32,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
             let content_len = len.saturating_sub(text_start) as u32;
             if content_len > 0 {
-                raw.push((ln, text_start as u32, content_len, TYPE_HEADING, heading_mod(hash_len)));
+                raw.push((
+                    ln,
+                    text_start as u32,
+                    content_len,
+                    TYPE_HEADING,
+                    heading_mod(hash_len),
+                ));
             }
             continue;
         }
@@ -140,7 +152,13 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in m.start()..m.end() {
                 covered[j] = true;
             }
-            raw.push((ln, m.start() as u32, m.len() as u32, TYPE_MARKUP, MOD_CALLOUT));
+            raw.push((
+                ln,
+                m.start() as u32,
+                m.len() as u32,
+                TYPE_MARKUP,
+                MOD_CALLOUT,
+            ));
         }
 
         // ── Checkbox ─────────────────────────────────────────────────────────
@@ -172,9 +190,27 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_BOLD));
-            raw.push((ln, content.end() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_BOLD,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Strikethrough ~~content~~ ─────────────────────────────────────────
@@ -187,9 +223,27 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_STRIKETHROUGH));
-            raw.push((ln, content.end() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_STRIKETHROUGH,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Italic *content* ─────────────────────────────────────────────────
@@ -202,9 +256,27 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_ITALIC));
-            raw.push((ln, content.end() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_ITALIC,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Inline code `content` ─────────────────────────────────────────────
@@ -217,9 +289,27 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_CODE));
-            raw.push((ln, content.end() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_CODE,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Wikilinks [[target]] ─────────────────────────────────────────────
@@ -240,7 +330,13 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                     MOD_WIKILINK
                 };
             // [[ opening punctuation
-            raw.push((ln, full.start() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
             // inner content
             let inner_start = full.start() + 2;
             let inner_end = full.end() - 2;
@@ -254,7 +350,13 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 ));
             }
             // ]] closing punctuation
-            raw.push((ln, (full.end() - 2) as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                (full.end() - 2) as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Regular links [text](url) ─────────────────────────────────────────
@@ -268,11 +370,41 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, text_m.start() as u32, text_m.len() as u32, TYPE_STRING, MOD_LINK));
-            raw.push((ln, text_m.end() as u32, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, url_m.start() as u32, url_m.len() as u32, TYPE_STRING, MOD_LINK));
-            raw.push((ln, url_m.end() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                text_m.start() as u32,
+                text_m.len() as u32,
+                TYPE_STRING,
+                MOD_LINK,
+            ));
+            raw.push((
+                ln,
+                text_m.end() as u32,
+                2,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                url_m.start() as u32,
+                url_m.len() as u32,
+                TYPE_STRING,
+                MOD_LINK,
+            ));
+            raw.push((
+                ln,
+                url_m.end() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Math $content$ ───────────────────────────────────────────────────
@@ -285,9 +417,27 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             for j in full.start()..full.end() {
                 covered[j] = true;
             }
-            raw.push((ln, full.start() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
-            raw.push((ln, content.start() as u32, content.len() as u32, TYPE_MARKUP, MOD_MATH));
-            raw.push((ln, content.end() as u32, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+            raw.push((
+                ln,
+                full.start() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_MATH,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                1,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Tags #word ────────────────────────────────────────────────────────
@@ -347,7 +497,11 @@ pub fn compute_token_delta(old: &[u32], new: &[u32]) -> Vec<SemanticTokensEdit> 
     }
 
     // Find the common prefix (must align to a 5-element token boundary).
-    let raw_prefix = old.iter().zip(new.iter()).take_while(|(a, b)| a == b).count();
+    let raw_prefix = old
+        .iter()
+        .zip(new.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
     let prefix = (raw_prefix / 5) * 5;
 
     // Find the common suffix in the remaining slices.
@@ -355,7 +509,12 @@ pub fn compute_token_delta(old: &[u32], new: &[u32]) -> Vec<SemanticTokensEdit> 
     // the delta encoding is consistent with the shared preceding context.
     let old_rest = &old[prefix..];
     let new_rest = &new[prefix..];
-    let raw_suffix = old_rest.iter().rev().zip(new_rest.iter().rev()).take_while(|(a, b)| a == b).count();
+    let raw_suffix = old_rest
+        .iter()
+        .rev()
+        .zip(new_rest.iter().rev())
+        .take_while(|(a, b)| a == b)
+        .count();
     let suffix = (raw_suffix / 5) * 5;
 
     let delete_count = (old_rest.len() - suffix) as u32;
@@ -364,7 +523,11 @@ pub fn compute_token_delta(old: &[u32], new: &[u32]) -> Vec<SemanticTokensEdit> 
     vec![SemanticTokensEdit {
         start: prefix as u32,
         delete_count,
-        data: if insert.is_empty() { None } else { Some(flat_to_tokens(insert)) },
+        data: if insert.is_empty() {
+            None
+        } else {
+            Some(flat_to_tokens(insert))
+        },
     }]
 }
 
@@ -414,7 +577,11 @@ fn encode_delta(raw: Vec<(u32, u32, u32, u32, u32)>) -> Vec<SemanticToken> {
     let mut prev_start = 0u32;
     for (line, start, length, token_type, modifiers) in raw {
         let delta_line = line - prev_line;
-        let delta_start = if delta_line == 0 { start - prev_start } else { start };
+        let delta_start = if delta_line == 0 {
+            start - prev_start
+        } else {
+            start
+        };
         tokens.push(SemanticToken {
             delta_line,
             delta_start,
@@ -443,7 +610,11 @@ mod tests {
         let mut col = 0u32;
         for t in tokens {
             line += t.delta_line;
-            col = if t.delta_line == 0 { col + t.delta_start } else { t.delta_start };
+            col = if t.delta_line == 0 {
+                col + t.delta_start
+            } else {
+                t.delta_start
+            };
             result.push((line, col, t.length, t.token_type, t.token_modifiers_bitset));
         }
         result
@@ -457,7 +628,14 @@ mod tests {
         build_index(vec![parse_note(&Utf8PathBuf::from(path), content)])
     }
 
-    fn has(tokens: &[(u32, u32, u32, u32, u32)], line: u32, col: u32, len: u32, ty: u32, mods: u32) -> bool {
+    fn has(
+        tokens: &[(u32, u32, u32, u32, u32)],
+        line: u32,
+        col: u32,
+        len: u32,
+        ty: u32,
+        mods: u32,
+    ) -> bool {
         tokens.iter().any(|t| *t == (line, col, len, ty, mods))
     }
 
@@ -466,7 +644,14 @@ mod tests {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("# Title\n", &idx));
         // `#` → punctuation + markup_punctuation
-        assert!(has(&tokens, 0, 0, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         // `Title` (5 chars) → heading + h1
         assert!(has(&tokens, 0, 2, 5, TYPE_HEADING, MOD_H1));
     }
@@ -475,7 +660,14 @@ mod tests {
     fn test_h3_heading() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("### Sub\n", &idx));
-        assert!(has(&tokens, 0, 0, 3, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            3,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 4, 3, TYPE_HEADING, MOD_H3));
     }
 
@@ -483,7 +675,14 @@ mod tests {
     fn test_h6_heading() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("###### Deep\n", &idx));
-        assert!(has(&tokens, 0, 0, 6, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            6,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 7, 4, TYPE_HEADING, MOD_H6));
     }
 
@@ -491,36 +690,92 @@ mod tests {
     fn test_bold() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("**hello**\n", &idx));
-        assert!(has(&tokens, 0, 0, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 2, 5, TYPE_MARKUP, MOD_BOLD));
-        assert!(has(&tokens, 0, 7, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            7,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
     fn test_italic() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("*hello*\n", &idx));
-        assert!(has(&tokens, 0, 0, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 1, 5, TYPE_MARKUP, MOD_ITALIC));
-        assert!(has(&tokens, 0, 6, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            6,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
     fn test_strikethrough() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("~~gone~~\n", &idx));
-        assert!(has(&tokens, 0, 0, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 2, 4, TYPE_MARKUP, MOD_STRIKETHROUGH));
-        assert!(has(&tokens, 0, 6, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            6,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
     fn test_inline_code() {
         let idx = empty_index();
         let tokens = decode(&compute_semantic_tokens("`hello`\n", &idx));
-        assert!(has(&tokens, 0, 0, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 1, 5, TYPE_MARKUP, MOD_CODE));
-        assert!(has(&tokens, 0, 6, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            6,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
@@ -528,9 +783,23 @@ mod tests {
         let idx = index_with_note("/vault/target.md", "# Target\n");
         let tokens = decode(&compute_semantic_tokens("[[target]]\n", &idx));
         // [[ at 0, `target` (6 chars) at 2, ]] at 8
-        assert!(has(&tokens, 0, 0, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 2, 6, TYPE_MARKUP, MOD_WIKILINK));
-        assert!(has(&tokens, 0, 8, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            8,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         // Must NOT be broken
         assert!(!tokens.iter().any(|t| t.4 & MOD_BROKEN != 0));
     }
@@ -539,7 +808,14 @@ mod tests {
     fn test_wikilink_broken() {
         let idx = index_with_note("/vault/other.md", "# Other\n");
         let tokens = decode(&compute_semantic_tokens("[[missing]]\n", &idx));
-        assert!(has(&tokens, 0, 2, 7, TYPE_MARKUP, MOD_WIKILINK | MOD_BROKEN));
+        assert!(has(
+            &tokens,
+            0,
+            2,
+            7,
+            TYPE_MARKUP,
+            MOD_WIKILINK | MOD_BROKEN
+        ));
     }
 
     #[test]
@@ -555,11 +831,32 @@ mod tests {
         let idx = empty_index();
         // [text](url) — 12 chars: [ at 0, text 1-4, ]( at 5-6, url 7-9, ) at 10
         let tokens = decode(&compute_semantic_tokens("[text](url)\n", &idx));
-        assert!(has(&tokens, 0, 0, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION)); // [
-        assert!(has(&tokens, 0, 1, 4, TYPE_STRING, MOD_LINK));                    // text
-        assert!(has(&tokens, 0, 5, 2, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION)); // ](
-        assert!(has(&tokens, 0, 7, 3, TYPE_STRING, MOD_LINK));                    // url
-        assert!(has(&tokens, 0, 10, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION)); // )
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        )); // [
+        assert!(has(&tokens, 0, 1, 4, TYPE_STRING, MOD_LINK)); // text
+        assert!(has(
+            &tokens,
+            0,
+            5,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        )); // ](
+        assert!(has(&tokens, 0, 7, 3, TYPE_STRING, MOD_LINK)); // url
+        assert!(has(
+            &tokens,
+            0,
+            10,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        )); // )
     }
 
     #[test]
@@ -575,9 +872,23 @@ mod tests {
         let idx = empty_index();
         // "$x+1$" — $ at 0, x+1 at 1 (len 3), $ at 4
         let tokens = decode(&compute_semantic_tokens("$x+1$\n", &idx));
-        assert!(has(&tokens, 0, 0, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         assert!(has(&tokens, 0, 1, 3, TYPE_MARKUP, MOD_MATH));
-        assert!(has(&tokens, 0, 4, 1, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            4,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
@@ -586,11 +897,25 @@ mod tests {
         let text = "---\ntitle: Foo\n---\n";
         let tokens = decode(&compute_semantic_tokens(text, &idx));
         // Line 0: `---` (3 chars) → punctuation + markup_punctuation
-        assert!(has(&tokens, 0, 0, 3, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            3,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
         // Line 1: `title: Foo` (10 chars) → comment + frontmatter
         assert!(has(&tokens, 1, 0, 10, TYPE_COMMENT, MOD_FRONTMATTER));
         // Line 2: `---` → punctuation + markup_punctuation
-        assert!(has(&tokens, 2, 0, 3, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
+        assert!(has(
+            &tokens,
+            2,
+            0,
+            3,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 
     #[test]
@@ -649,12 +974,17 @@ mod tests {
         for edit in &edits {
             let start = edit.start as usize;
             let end = start + edit.delete_count as usize;
-            let data_flat = edit.data.as_deref()
+            let data_flat = edit
+                .data
+                .as_deref()
                 .map(|tokens| tokens_to_flat(tokens))
                 .unwrap_or_default();
             result.splice(start..end, data_flat);
         }
-        assert_eq!(result, new_flat, "applying edits must produce the new flat array");
+        assert_eq!(
+            result, new_flat,
+            "applying edits must produce the new flat array"
+        );
     }
 
     #[test]

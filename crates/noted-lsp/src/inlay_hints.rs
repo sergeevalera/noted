@@ -63,7 +63,13 @@ mod tests {
         let hints = compute_inlay_hints("- [x] Buy milk\n");
         assert_eq!(hints.len(), 1);
         assert_eq!(label_str(&hints[0]), " ✓");
-        assert_eq!(hints[0].position, Position { line: 0, character: 5 });
+        assert_eq!(
+            hints[0].position,
+            Position {
+                line: 0,
+                character: 5
+            }
+        );
     }
 
     #[test]
@@ -71,7 +77,13 @@ mod tests {
         let hints = compute_inlay_hints("- [ ] Write tests\n");
         assert_eq!(hints.len(), 1);
         assert_eq!(label_str(&hints[0]), " ○");
-        assert_eq!(hints[0].position, Position { line: 0, character: 5 });
+        assert_eq!(
+            hints[0].position,
+            Position {
+                line: 0,
+                character: 5
+            }
+        );
     }
 
     #[test]

@@ -50,9 +50,14 @@ fn build_line_starts(text: &str) -> Vec<usize> {
 }
 
 fn offset_to_position(line_starts: &[usize], offset: usize) -> Position {
-    let line = line_starts.partition_point(|&s| s <= offset).saturating_sub(1);
+    let line = line_starts
+        .partition_point(|&s| s <= offset)
+        .saturating_sub(1);
     let character = offset - line_starts[line];
-    Position { line: line as u32, character: character as u32 }
+    Position {
+        line: line as u32,
+        character: character as u32,
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -60,8 +65,8 @@ fn offset_to_position(line_starts: &[usize], offset: usize) -> Position {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note, VaultIndex};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         let entries = notes
@@ -107,8 +112,20 @@ mod tests {
         let diags = compute_diagnostics("[[missing]]", &index);
         assert_eq!(diags.len(), 1);
         let r = diags[0].range;
-        assert_eq!(r.start, Position { line: 0, character: 0 });
-        assert_eq!(r.end, Position { line: 0, character: 11 }); // len("[[missing]]")
+        assert_eq!(
+            r.start,
+            Position {
+                line: 0,
+                character: 0
+            }
+        );
+        assert_eq!(
+            r.end,
+            Position {
+                line: 0,
+                character: 11
+            }
+        ); // len("[[missing]]")
     }
 
     #[test]
@@ -117,8 +134,20 @@ mod tests {
         let diags = compute_diagnostics("text [[missing]] more", &index);
         assert_eq!(diags.len(), 1);
         let r = diags[0].range;
-        assert_eq!(r.start, Position { line: 0, character: 5 });
-        assert_eq!(r.end, Position { line: 0, character: 16 });
+        assert_eq!(
+            r.start,
+            Position {
+                line: 0,
+                character: 5
+            }
+        );
+        assert_eq!(
+            r.end,
+            Position {
+                line: 0,
+                character: 16
+            }
+        );
     }
 
     #[test]

@@ -16,7 +16,9 @@ pub fn find_definition(line_text: &str, character: u32, index: &VaultIndex) -> O
     while let Some(rel_open) = line_text[search_from..].find("[[") {
         let open_pos = search_from + rel_open;
         let after_open = &line_text[open_pos..];
-        let Some(rel_close) = after_open.find("]]") else { break };
+        let Some(rel_close) = after_open.find("]]") else {
+            break;
+        };
         let close_pos = open_pos + rel_close;
 
         // Span covers open_pos..=close_pos+1 (both `]]` chars)
@@ -31,8 +33,14 @@ pub fn find_definition(line_text: &str, character: u32, index: &VaultIndex) -> O
             return Some(Location {
                 uri,
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 0 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 0,
+                    },
                 },
             });
         }
@@ -48,8 +56,8 @@ pub fn find_definition(line_text: &str, character: u32, index: &VaultIndex) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         notes
@@ -61,7 +69,12 @@ mod tests {
 
     // Helper to call the pipe pattern without a trait
     trait Pipe: Sized {
-        fn pipe<F, R>(self, f: F) -> R where F: FnOnce(Self) -> R { f(self) }
+        fn pipe<F, R>(self, f: F) -> R
+        where
+            F: FnOnce(Self) -> R,
+        {
+            f(self)
+        }
     }
     impl<T> Pipe for T {}
 
@@ -72,7 +85,13 @@ mod tests {
         assert!(loc.is_some());
         let loc = loc.unwrap();
         assert!(loc.uri.path().ends_with("alice.md"));
-        assert_eq!(loc.range.start, Position { line: 0, character: 0 });
+        assert_eq!(
+            loc.range.start,
+            Position {
+                line: 0,
+                character: 0
+            }
+        );
     }
 
     #[test]

@@ -8,11 +8,7 @@ use tower_lsp::lsp_types::*;
 /// - Increase/Decrease heading level
 /// - Insert callout / table on empty lines
 /// - Change callout type
-pub fn compute_code_actions(
-    uri: &Url,
-    range: Range,
-    text: &str,
-) -> Vec<CodeActionOrCommand> {
+pub fn compute_code_actions(uri: &Url, range: Range, text: &str) -> Vec<CodeActionOrCommand> {
     let mut actions = Vec::new();
 
     let start_line = range.start.line as usize;
@@ -93,14 +89,26 @@ pub fn compute_code_actions(
 fn checkbox_toggle(uri: &Url, line: u32, line_text: &str) -> Option<CodeAction> {
     if let Some(pos) = line_text.find("- [x]") {
         let range = Range {
-            start: Position { line, character: (pos + 2) as u32 },
-            end: Position { line, character: (pos + 5) as u32 },
+            start: Position {
+                line,
+                character: (pos + 2) as u32,
+            },
+            end: Position {
+                line,
+                character: (pos + 5) as u32,
+            },
         };
         Some(make_edit_action(uri, "Toggle Checkbox", range, "[ ]"))
     } else if let Some(pos) = line_text.find("- [ ]") {
         let range = Range {
-            start: Position { line, character: (pos + 2) as u32 },
-            end: Position { line, character: (pos + 5) as u32 },
+            start: Position {
+                line,
+                character: (pos + 2) as u32,
+            },
+            end: Position {
+                line,
+                character: (pos + 5) as u32,
+            },
         };
         Some(make_edit_action(uri, "Toggle Checkbox", range, "[x]"))
     } else {
@@ -115,11 +123,17 @@ fn wrap_action(uri: &Url, range: Range, title: &str, before: &str, after: &str) 
         vec![
             // Insert `after` first (at end) so it doesn't shift the start position
             TextEdit {
-                range: Range { start: range.end, end: range.end },
+                range: Range {
+                    start: range.end,
+                    end: range.end,
+                },
                 new_text: after.to_string(),
             },
             TextEdit {
-                range: Range { start: range.start, end: range.start },
+                range: Range {
+                    start: range.start,
+                    end: range.start,
+                },
                 new_text: before.to_string(),
             },
         ],
@@ -127,7 +141,10 @@ fn wrap_action(uri: &Url, range: Range, title: &str, before: &str, after: &str) 
     CodeAction {
         title: title.to_string(),
         kind: Some(CodeActionKind::REFACTOR),
-        edit: Some(WorkspaceEdit { changes: Some(changes), ..Default::default() }),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -162,8 +179,14 @@ fn heading_change(
     let old_prefix_len = leading_spaces + old_level as usize;
     let new_hashes = "#".repeat(new_level as usize);
     let range = Range {
-        start: Position { line, character: leading_spaces as u32 },
-        end: Position { line, character: old_prefix_len as u32 },
+        start: Position {
+            line,
+            character: leading_spaces as u32,
+        },
+        end: Position {
+            line,
+            character: old_prefix_len as u32,
+        },
     };
     make_edit_action(uri, title, range, &new_hashes)
 }
@@ -176,11 +199,7 @@ fn insert_action(uri: &Url, line: u32, title: &str, text: &str) -> CodeAction {
     make_edit_action(uri, title, range, text)
 }
 
-fn change_callout_type(
-    uri: &Url,
-    line: u32,
-    line_text: &str,
-) -> Option<Vec<CodeActionOrCommand>> {
+fn change_callout_type(uri: &Url, line: u32, line_text: &str) -> Option<Vec<CodeActionOrCommand>> {
     let trimmed = line_text.trim_start();
     if !trimmed.starts_with("> [!") {
         return None;
@@ -194,11 +213,33 @@ fn change_callout_type(
     let type_end = type_start + end;
 
     let range = Range {
-        start: Position { line, character: type_start as u32 },
-        end: Position { line, character: type_end as u32 },
+        start: Position {
+            line,
+            character: type_start as u32,
+        },
+        end: Position {
+            line,
+            character: type_end as u32,
+        },
     };
 
-    let types = ["note", "warning", "tip", "important", "caution", "info", "abstract", "todo", "success", "question", "failure", "danger", "bug", "example", "quote"];
+    let types = [
+        "note",
+        "warning",
+        "tip",
+        "important",
+        "caution",
+        "info",
+        "abstract",
+        "todo",
+        "success",
+        "question",
+        "failure",
+        "danger",
+        "bug",
+        "example",
+        "quote",
+    ];
     let actions: Vec<CodeActionOrCommand> = types
         .iter()
         .filter(|&&t| t != current_type)
@@ -227,12 +268,18 @@ fn make_edit_action(uri: &Url, title: &str, range: Range, new_text: &str) -> Cod
     let mut changes = std::collections::HashMap::new();
     changes.insert(
         uri.clone(),
-        vec![TextEdit { range, new_text: new_text.to_string() }],
+        vec![TextEdit {
+            range,
+            new_text: new_text.to_string(),
+        }],
     );
     CodeAction {
         title: title.to_string(),
         kind: Some(CodeActionKind::REFACTOR),
-        edit: Some(WorkspaceEdit { changes: Some(changes), ..Default::default() }),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -263,7 +310,11 @@ mod tests {
                 let ws = ca.edit.as_ref().unwrap();
                 let changes = ws.changes.as_ref().unwrap();
                 let edits = changes.values().next().unwrap();
-                edits.iter().map(|e| e.new_text.clone()).collect::<Vec<_>>().join("")
+                edits
+                    .iter()
+                    .map(|e| e.new_text.clone())
+                    .collect::<Vec<_>>()
+                    .join("")
             }
             _ => panic!("expected CodeAction"),
         }
@@ -275,16 +326,25 @@ mod tests {
     fn test_toggle_unchecked_to_checked() {
         let text = "- [ ] Buy milk\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
         assert!(titles.contains(&"Toggle Checkbox".to_string()));
-        let toggle = actions.iter().find(|a| match a {
-            CodeActionOrCommand::CodeAction(ca) => ca.title == "Toggle Checkbox",
-            _ => false,
-        }).unwrap();
+        let toggle = actions
+            .iter()
+            .find(|a| match a {
+                CodeActionOrCommand::CodeAction(ca) => ca.title == "Toggle Checkbox",
+                _ => false,
+            })
+            .unwrap();
         assert_eq!(first_edit_text(toggle), "[x]");
     }
 
@@ -292,14 +352,23 @@ mod tests {
     fn test_toggle_checked_to_unchecked() {
         let text = "- [x] Done task\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
-        let toggle = actions.iter().find(|a| match a {
-            CodeActionOrCommand::CodeAction(ca) => ca.title == "Toggle Checkbox",
-            _ => false,
-        }).unwrap();
+        let toggle = actions
+            .iter()
+            .find(|a| match a {
+                CodeActionOrCommand::CodeAction(ca) => ca.title == "Toggle Checkbox",
+                _ => false,
+            })
+            .unwrap();
         assert_eq!(first_edit_text(toggle), "[ ]");
     }
 
@@ -307,8 +376,14 @@ mod tests {
     fn test_no_checkbox_on_plain_line() {
         let text = "Just some text\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -321,8 +396,14 @@ mod tests {
     fn test_wrap_actions_with_selection() {
         let text = "Some text here\n";
         let range = Range {
-            start: Position { line: 0, character: 5 },
-            end: Position { line: 0, character: 9 },
+            start: Position {
+                line: 0,
+                character: 5,
+            },
+            end: Position {
+                line: 0,
+                character: 9,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -337,8 +418,14 @@ mod tests {
     fn test_no_wrap_without_selection() {
         let text = "Some text here\n";
         let range = Range {
-            start: Position { line: 0, character: 5 },
-            end: Position { line: 0, character: 5 },
+            start: Position {
+                line: 0,
+                character: 5,
+            },
+            end: Position {
+                line: 0,
+                character: 5,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -351,8 +438,14 @@ mod tests {
     fn test_heading_increase_decrease() {
         let text = "## Heading\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -364,8 +457,14 @@ mod tests {
     fn test_h1_cannot_decrease() {
         let text = "# Heading\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -377,8 +476,14 @@ mod tests {
     fn test_h6_cannot_increase() {
         let text = "###### Heading\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -390,14 +495,23 @@ mod tests {
     fn test_heading_increase_edits() {
         let text = "## Section\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
-        let increase = actions.iter().find(|a| match a {
-            CodeActionOrCommand::CodeAction(ca) => ca.title == "Increase Heading Level",
-            _ => false,
-        }).unwrap();
+        let increase = actions
+            .iter()
+            .find(|a| match a {
+                CodeActionOrCommand::CodeAction(ca) => ca.title == "Increase Heading Level",
+                _ => false,
+            })
+            .unwrap();
         assert_eq!(first_edit_text(increase), "###");
     }
 
@@ -407,8 +521,14 @@ mod tests {
     fn test_insert_on_empty_line() {
         let text = "Some text\n\nMore text\n";
         let range = Range {
-            start: Position { line: 1, character: 0 },
-            end: Position { line: 1, character: 0 },
+            start: Position {
+                line: 1,
+                character: 0,
+            },
+            end: Position {
+                line: 1,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -420,8 +540,14 @@ mod tests {
     fn test_no_insert_on_non_empty_line() {
         let text = "Some text\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -435,8 +561,14 @@ mod tests {
     fn test_change_callout_type() {
         let text = "> [!note] My note\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);
@@ -449,8 +581,14 @@ mod tests {
     fn test_no_callout_change_on_plain_blockquote() {
         let text = "> Just a quote\n";
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 0, character: 0 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 0,
+            },
         };
         let actions = compute_code_actions(&test_uri(), range, text);
         let titles = action_titles(&actions);

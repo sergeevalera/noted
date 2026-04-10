@@ -46,7 +46,11 @@ pub fn compute_completions(
         })
         .map(|note| {
             // Use the file stem as insert text (matches how wikilinks are written)
-            let stem = note.path.file_stem().unwrap_or(note.title.as_str()).to_string();
+            let stem = note
+                .path
+                .file_stem()
+                .unwrap_or(note.title.as_str())
+                .to_string();
             CompletionItem {
                 label: note.title.clone(),
                 kind: Some(CompletionItemKind::REFERENCE),
@@ -54,7 +58,10 @@ pub fn compute_completions(
                 // Replace the partial text after `[[` with the note stem
                 text_edit: Some(CompletionTextEdit::Edit(TextEdit {
                     range: Range {
-                        start: Position { line, character: start_char },
+                        start: Position {
+                            line,
+                            character: start_char,
+                        },
                         end: Position { line, character },
                     },
                     new_text: stem,
@@ -71,8 +78,8 @@ pub fn compute_completions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         let entries = notes
@@ -120,8 +127,20 @@ mod tests {
         let items = compute_completions(3, "See [[ali", 9, &index);
         assert_eq!(items.len(), 1);
         if let Some(CompletionTextEdit::Edit(edit)) = &items[0].text_edit {
-            assert_eq!(edit.range.start, Position { line: 3, character: 6 }); // after `[[`
-            assert_eq!(edit.range.end, Position { line: 3, character: 9 });   // cursor
+            assert_eq!(
+                edit.range.start,
+                Position {
+                    line: 3,
+                    character: 6
+                }
+            ); // after `[[`
+            assert_eq!(
+                edit.range.end,
+                Position {
+                    line: 3,
+                    character: 9
+                }
+            ); // cursor
             assert_eq!(edit.new_text, "alice");
         } else {
             panic!("expected TextEdit");

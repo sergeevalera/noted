@@ -193,9 +193,10 @@ mod tests {
 
     #[test]
     fn test_broken_links_not_in_backlinks() {
-        let vault = vault_with(vec![
-            make_note("/vault/alice.md", "# Alice\n\nSee [[missing]].\n"),
-        ]);
+        let vault = vault_with(vec![make_note(
+            "/vault/alice.md",
+            "# Alice\n\nSee [[missing]].\n",
+        )]);
         // No entry for "missing" since it doesn't exist
         assert_eq!(vault.backlinks.len(), 0);
     }

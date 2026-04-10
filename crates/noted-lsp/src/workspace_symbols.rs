@@ -36,8 +36,14 @@ pub fn compute_workspace_symbols(query: &str, index: &VaultIndex) -> Vec<SymbolI
                 location: Location {
                     uri: uri.clone(),
                     range: Range {
-                        start: Position { line: heading.line, character: 0 },
-                        end: Position { line: heading.line, character: 0 },
+                        start: Position {
+                            line: heading.line,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: heading.line,
+                            character: 0,
+                        },
                     },
                 },
                 container_name: Some(entry.title.clone()),
@@ -47,8 +53,13 @@ pub fn compute_workspace_symbols(query: &str, index: &VaultIndex) -> Vec<SymbolI
 
     // Sort by file path then line number for stable ordering
     symbols.sort_by(|a, b| {
-        a.location.uri.as_str().cmp(b.location.uri.as_str())
-            .then(a.location.range.start.line.cmp(&b.location.range.start.line))
+        a.location.uri.as_str().cmp(b.location.uri.as_str()).then(
+            a.location
+                .range
+                .start
+                .line
+                .cmp(&b.location.range.start.line),
+        )
     });
 
     symbols
@@ -59,8 +70,8 @@ pub fn compute_workspace_symbols(query: &str, index: &VaultIndex) -> Vec<SymbolI
 #[cfg(test)]
 mod tests {
     use super::*;
-    use camino::Utf8PathBuf;
     use crate::vault::{build_index, parse_note};
+    use camino::Utf8PathBuf;
 
     fn make_index(notes: &[(&str, &str)]) -> VaultIndex {
         let entries: Vec<_> = notes
@@ -93,18 +104,14 @@ mod tests {
 
     #[test]
     fn test_query_is_case_insensitive() {
-        let index = make_index(&[
-            ("/vault/a.md", "# Hello World\n"),
-        ]);
+        let index = make_index(&[("/vault/a.md", "# Hello World\n")]);
         let symbols = compute_workspace_symbols("HELLO", &index);
         assert_eq!(symbols.len(), 1);
     }
 
     #[test]
     fn test_heading_levels_map_to_symbol_kinds() {
-        let index = make_index(&[
-            ("/vault/a.md", "# H1\n## H2\n### H3\n#### H4\n"),
-        ]);
+        let index = make_index(&[("/vault/a.md", "# H1\n## H2\n### H3\n#### H4\n")]);
         let symbols = compute_workspace_symbols("", &index);
         assert_eq!(symbols[0].kind, SymbolKind::FILE);
         assert_eq!(symbols[1].kind, SymbolKind::MODULE);
@@ -114,18 +121,14 @@ mod tests {
 
     #[test]
     fn test_container_name_is_note_title() {
-        let index = make_index(&[
-            ("/vault/a.md", "# My Note\n## Section\n"),
-        ]);
+        let index = make_index(&[("/vault/a.md", "# My Note\n## Section\n")]);
         let symbols = compute_workspace_symbols("Section", &index);
         assert_eq!(symbols[0].container_name.as_deref(), Some("My Note"));
     }
 
     #[test]
     fn test_no_matches_returns_empty() {
-        let index = make_index(&[
-            ("/vault/a.md", "# Alpha\n"),
-        ]);
+        let index = make_index(&[("/vault/a.md", "# Alpha\n")]);
         let symbols = compute_workspace_symbols("zzz", &index);
         assert!(symbols.is_empty());
     }

@@ -38,7 +38,9 @@ impl PreviewState {
 
 /// Start the preview HTTP server on a random available port.
 /// Returns the address the server is listening on.
-pub async fn start_preview_server(state: PreviewState) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+pub async fn start_preview_server(
+    state: PreviewState,
+) -> Result<SocketAddr, Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/ws", get(ws_handler))
@@ -62,10 +64,7 @@ async fn index_handler(State(state): State<PreviewState>) -> impl IntoResponse {
 }
 
 /// WebSocket upgrade handler — streams HTML updates to the browser.
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<PreviewState>,
-) -> impl IntoResponse {
+async fn ws_handler(ws: WebSocketUpgrade, State(state): State<PreviewState>) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_ws(socket, state))
 }
 
@@ -130,10 +129,7 @@ fn render_preview_page(content: &str) -> String {
 
 /// CSS endpoint — served separately so browsers can cache it.
 pub async fn css_handler() -> impl IntoResponse {
-    (
-        [("content-type", "text/css; charset=utf-8")],
-        PREVIEW_CSS,
-    )
+    ([("content-type", "text/css; charset=utf-8")], PREVIEW_CSS)
 }
 
 /// Preview CSS — Verdant Garden light palette, optimized for Markdown reading.
@@ -437,5 +433,4 @@ mod tests {
         assert!(addr.port() > 0);
         assert_eq!(addr.ip(), std::net::Ipv4Addr::LOCALHOST);
     }
-
 }

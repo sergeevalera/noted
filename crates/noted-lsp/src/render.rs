@@ -19,7 +19,8 @@ pub fn render_markdown(text: &str) -> String {
 
 /// Preprocess Markdown source: expand wikilinks and callouts before pulldown-cmark parsing.
 fn preprocess(text: &str) -> String {
-    let wikilink_re = Regex::new(r"\[\[([^\]|#\n]+?)(?:#([^\]|\n]+?))?(?:\|([^\]\n]+?))?\]\]").unwrap();
+    let wikilink_re =
+        Regex::new(r"\[\[([^\]|#\n]+?)(?:#([^\]|\n]+?))?(?:\|([^\]\n]+?))?\]\]").unwrap();
     let callout_re = Regex::new(r"^> \[!([A-Za-z][A-Za-z0-9]*)\]\s*(.*)").unwrap();
 
     let mut result = String::with_capacity(text.len());
@@ -52,9 +53,8 @@ fn preprocess(text: &str) -> String {
         if in_callout && line.starts_with("> ") {
             let content = &line[2..];
             // Process wikilinks in callout content
-            let processed = wikilink_re.replace_all(content, |caps: &regex::Captures| {
-                wikilink_to_html(caps)
-            });
+            let processed =
+                wikilink_re.replace_all(content, |caps: &regex::Captures| wikilink_to_html(caps));
             result.push_str(&processed);
             result.push('\n');
             continue;
@@ -67,9 +67,8 @@ fn preprocess(text: &str) -> String {
         }
 
         // Process wikilinks in normal lines
-        let processed = wikilink_re.replace_all(line, |caps: &regex::Captures| {
-            wikilink_to_html(caps)
-        });
+        let processed =
+            wikilink_re.replace_all(line, |caps: &regex::Captures| wikilink_to_html(caps));
         result.push_str(&processed);
         result.push('\n');
     }
@@ -136,11 +135,7 @@ fn transform_events(parser: Parser<'_>) -> Vec<Event<'_>> {
                     _ => String::new(),
                 };
                 events.push(Event::Html(
-                    format!(
-                        "<pre data-line=\"{}\"><code{}>",
-                        line_number, lang
-                    )
-                    .into(),
+                    format!("<pre data-line=\"{}\"><code{}>", line_number, lang).into(),
                 ));
                 continue;
             }

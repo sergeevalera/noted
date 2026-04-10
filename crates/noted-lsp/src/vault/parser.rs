@@ -17,12 +17,13 @@ pub fn parse_note(path: &Utf8PathBuf, content: &str) -> NoteEntry {
     let title = frontmatter
         .as_ref()
         .and_then(|fm| fm.title.clone())
-        .or_else(|| headings.iter().find(|h| h.level == 1).map(|h| h.text.clone()))
-        .unwrap_or_else(|| {
-            path.file_stem()
-                .unwrap_or(path.as_str())
-                .to_string()
-        });
+        .or_else(|| {
+            headings
+                .iter()
+                .find(|h| h.level == 1)
+                .map(|h| h.text.clone())
+        })
+        .unwrap_or_else(|| path.file_stem().unwrap_or(path.as_str()).to_string());
 
     NoteEntry {
         path: path.clone(),
@@ -76,7 +77,10 @@ fn parse_frontmatter_fields(raw: &str) -> Frontmatter {
                     tags.push(t.to_string());
                 }
             }
-        } else if let Some(rest) = line.strip_prefix("  - ").or_else(|| line.strip_prefix("- ")) {
+        } else if let Some(rest) = line
+            .strip_prefix("  - ")
+            .or_else(|| line.strip_prefix("- "))
+        {
             // YAML list item under tags:
             let t = rest.trim().trim_matches('"');
             if !t.is_empty() {
@@ -85,7 +89,11 @@ fn parse_frontmatter_fields(raw: &str) -> Frontmatter {
         }
     }
 
-    Frontmatter { title, tags, raw: raw.to_string() }
+    Frontmatter {
+        title,
+        tags,
+        raw: raw.to_string(),
+    }
 }
 
 // ── Headings ───────────────────────────────────────────────────────────────
@@ -166,7 +174,10 @@ fn extract_tags(content: &str) -> Vec<Tag> {
         .map(|cap| {
             let m = cap.get(1).unwrap();
             let line = offset_to_line(&line_starts, m.start());
-            Tag { name: cap[1].to_string(), line }
+            Tag {
+                name: cap[1].to_string(),
+                line,
+            }
         })
         .collect()
 }
