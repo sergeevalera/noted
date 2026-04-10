@@ -6,6 +6,7 @@
   { "token_type": "heading", "token_modifiers": ["h5"], "style": ["heading.h5", "heading", "title"] },
   { "token_type": "heading", "token_modifiers": ["h6"], "style": ["heading.h6", "heading", "title"] },
 
+  { "token_type": "markup", "token_modifiers": ["bold", "italic"], "style": ["markup.bold", "emphasis.strong"] },
   { "token_type": "markup", "token_modifiers": ["bold"], "style": ["markup.bold", "emphasis.strong"] },
   { "token_type": "markup", "token_modifiers": ["italic"], "style": ["markup.italic", "emphasis"] },
   { "token_type": "markup", "token_modifiers": ["strikethrough"], "style": ["markup.strikethrough"] },
