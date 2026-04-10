@@ -96,8 +96,12 @@ noted/
         ├── diagnostics.rs      # publishDiagnostics (broken wikilinks)
         ├── hover.rs            # textDocument/hover (note title + snippet + metadata)
         ├── inlay_hints.rs      # textDocument/inlayHint (checkbox ✓/○ markers)
+        ├── preview.rs          # HTTP + WebSocket preview server (axum)
+        ├── render.rs           # MD → HTML renderer (pulldown-cmark + wikilinks + callouts)
+        ├── rename.rs           # prepareRename + rename wikilinks across vault
         ├── semantic_tokens.rs  # textDocument/semanticTokens (headings, bold, italic)
         ├── symbols.rs          # textDocument/documentSymbol (heading tree)
+        ├── workspace_symbols.rs # workspace/symbol (search headings across vault)
         └── vault/
             ├── mod.rs          # Re-exports
             ├── index.rs        # VaultIndex, build_index, resolve_wikilink
@@ -111,7 +115,7 @@ noted/
 
 - Edition 2021, stable toolchain
 - Formatting: `cargo fmt` (rustfmt defaults)
-- Linting: `cargo clippy -- -D warnings`
+- Linting: `cargo clippy -p noted-lsp -- -D warnings`
 - Tests: `cargo test` must pass before every commit
 - Error handling: use `anyhow` for LSP, `thiserror` for library errors
 - Async: `tokio` runtime, `tower-lsp` async handlers
@@ -325,7 +329,7 @@ revert the legend to use descriptive names and add per-element styling:
 
 ### Integration tests (planned)
 
-- Test vault in `tests/fixtures/vault/` (not yet created)
+- Test vault created at `tests/fixtures/vault/` (10 notes)
 - Verify: vault index builds correctly
 - Verify: go-to-definition finds target files
 - Verify: rename updates all references
