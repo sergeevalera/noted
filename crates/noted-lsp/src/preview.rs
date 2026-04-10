@@ -75,13 +75,13 @@ async fn handle_ws(socket: WebSocket, state: PreviewState) {
     // Send current content immediately on connect
     let current = state.html.read().await.clone();
     if !current.is_empty() {
-        let _ = sender.send(Message::Text(current.into())).await;
+        let _ = sender.send(Message::Text(current)).await;
     }
 
     // Forward broadcast updates to this WebSocket client
     let mut send_task = tokio::spawn(async move {
         while let Ok(html) = rx.recv().await {
-            if sender.send(Message::Text(html.into())).await.is_err() {
+            if sender.send(Message::Text(html)).await.is_err() {
                 break;
             }
         }

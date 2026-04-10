@@ -25,14 +25,13 @@ fn preprocess(text: &str) -> String {
 
     let mut result = String::with_capacity(text.len());
     let mut in_callout = false;
-    let mut callout_type = String::new();
 
     for line in text.lines() {
         // Callout start: > [!type] optional title
         if let Some(caps) = callout_re.captures(line) {
             let ctype = &caps[1];
             let title = caps.get(2).map(|m| m.as_str().trim()).unwrap_or("");
-            callout_type = ctype.to_lowercase();
+            let callout_type = ctype.to_lowercase();
             in_callout = true;
 
             let display_title = if title.is_empty() {

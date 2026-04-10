@@ -20,6 +20,7 @@ pub struct NoteEntry {
     pub headings: Vec<Heading>,
     pub links: Vec<LinkReference>,
     pub tags: Vec<Tag>,
+    #[allow(dead_code)]
     pub frontmatter: Option<Frontmatter>,
 }
 
@@ -45,14 +46,17 @@ pub struct LinkReference {
 #[derive(Debug, Clone)]
 pub struct Tag {
     pub name: String,
+    #[allow(dead_code)]
     pub line: u32,
 }
 
 #[derive(Debug, Clone)]
 pub struct Frontmatter {
     pub title: Option<String>,
+    #[allow(dead_code)]
     pub tags: Vec<String>,
     /// Raw YAML text between the `---` markers.
+    #[allow(dead_code)]
     pub raw: String,
 }
 

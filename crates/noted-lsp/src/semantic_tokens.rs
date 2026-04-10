@@ -149,9 +149,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
 
         // ── Callout: > [!type] ────────────────────────────────────────────────
         if let Some(m) = callout_re.find(line) {
-            for j in m.start()..m.end() {
-                covered[j] = true;
-            }
+            covered[m.start()..m.end()].fill(true);
             raw.push((
                 ln,
                 m.start() as u32,
@@ -165,17 +163,13 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
         if let Some(m) = checkbox_done_re.find(line) {
             if let Some(bracket_pos) = line[m.start()..m.end()].find('[') {
                 let abs = m.start() + bracket_pos;
-                for j in abs..abs + 3 {
-                    covered[j] = true;
-                }
+                covered[abs..abs + 3].fill(true);
                 raw.push((ln, abs as u32, 3, TYPE_MARKUP, MOD_CHECKBOX_DONE));
             }
         } else if let Some(m) = checkbox_todo_re.find(line) {
             if let Some(bracket_pos) = line[m.start()..m.end()].find('[') {
                 let abs = m.start() + bracket_pos;
-                for j in abs..abs + 3 {
-                    covered[j] = true;
-                }
+                covered[abs..abs + 3].fill(true);
                 raw.push((ln, abs as u32, 3, TYPE_MARKUP, MOD_CHECKBOX_TODO));
             }
         }
@@ -187,9 +181,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let content = cap.get(1).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -220,9 +212,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let content = cap.get(1).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -253,9 +243,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let content = cap.get(1).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -286,9 +274,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let content = cap.get(1).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -319,9 +305,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let target = cap.get(1).unwrap().as_str().trim();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             // Mark broken only when the index is populated (avoids false positives on startup)
             let wikilink_mod =
                 if !index.notes.is_empty() && resolve_wikilink(index, target).is_none() {
@@ -367,9 +351,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             }
             let text_m = cap.get(1).unwrap();
             let url_m = cap.get(2).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -414,9 +396,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 continue;
             }
             let content = cap.get(1).unwrap();
-            for j in full.start()..full.end() {
-                covered[j] = true;
-            }
+            covered[full.start()..full.end()].fill(true);
             raw.push((
                 ln,
                 full.start() as u32,
@@ -445,9 +425,7 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             if covered[m.start()] {
                 continue;
             }
-            for j in m.start()..m.end() {
-                covered[j] = true;
-            }
+            covered[m.start()..m.end()].fill(true);
             raw.push((ln, m.start() as u32, m.len() as u32, TYPE_MARKUP, MOD_TAG));
         }
     }
