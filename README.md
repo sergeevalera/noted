@@ -48,29 +48,27 @@ export NOTED_LSP_PATH=/path/to/noted/target/release/noted-lsp
 
 ## Setup
 
-### Enable semantic tokens
+### Recommended settings
 
 Add to your Zed `settings.json`:
 
 ```json
 "languages": {
   "Noted Markdown": {
-    "semantic_tokens": "combined"
+    "semantic_tokens": "combined",
+    "soft_wrap": "editor_width"
   }
 }
 ```
 
-Semantic tokens are styled through the active Zed theme's `syntax` section.
-Any Zed theme will provide basic highlighting (headings, bold, code, etc.).
+- **`semantic_tokens`** — enables per-element styling (headings, bold, italic, wikilinks, tags, etc.). Each element gets a distinct color and weight from the active theme.
+- **`soft_wrap`** — wraps long lines at the editor width. Essential for comfortable prose editing. Use `"preferred_line_length"` if you prefer wrapping at a fixed column.
+
+**Font tip:** Noted uses `font_weight` to distinguish heading levels and bold text. Avoid setting `buffer_font_weight` too high (e.g., 700+) — it compresses the visual range between normal text and headings. A weight of 400–500 works best.
 
 ### Companion theme
 
-Install [Verdant Garden](https://github.com/sergeevalera/noted-theme) — a dark/light theme designed for comfortable Markdown reading and writing. Optimized for the Noted extension's semantic token mappings.
-
-> **Note:** Zed currently does not support custom semantic token types — only standard LSP types
-> (keyword, variable, string, comment, operator). This means all headings share the same color
-> regardless of level, and all markup (bold, italic, wikilinks, tags) shares another color.
-> Fine-grained per-element styling will be possible when Zed adds custom token type support.
+Install [Verdant Garden](https://github.com/sergeevalera/noted-theme) — a dark/light theme designed for comfortable Markdown reading and writing. Optimized for the Noted extension's semantic token mappings, with distinct styles for each heading level, markup type, and syntax element.
 
 ---
 
