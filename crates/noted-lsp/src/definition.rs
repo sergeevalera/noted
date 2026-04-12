@@ -126,8 +126,20 @@ mod tests {
         let loc = find_definition("See [[alice]] here", 5, 8, &index).unwrap();
         // origin_selection_range should cover [[alice]] (positions 4..13)
         let origin = loc.origin_selection_range.unwrap();
-        assert_eq!(origin.start, Position { line: 5, character: 4 });
-        assert_eq!(origin.end, Position { line: 5, character: 13 });
+        assert_eq!(
+            origin.start,
+            Position {
+                line: 5,
+                character: 4
+            }
+        );
+        assert_eq!(
+            origin.end,
+            Position {
+                line: 5,
+                character: 13
+            }
+        );
     }
 
     #[test]
