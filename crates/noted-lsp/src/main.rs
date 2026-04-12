@@ -323,8 +323,10 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
-        Ok(find_definition(line_text, position.character, &index)
-            .map(GotoDefinitionResponse::Scalar))
+        Ok(
+            find_definition(line_text, position.line, position.character, &index)
+                .map(|link| GotoDefinitionResponse::Link(vec![link])),
+        )
     }
 
     async fn document_symbol(

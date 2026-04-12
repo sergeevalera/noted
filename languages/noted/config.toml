@@ -1,6 +1,7 @@
 name = "Noted Markdown"
 path_suffixes = ["md", "markdown"]
 line_comments = []
+word_characters = ["-"]
 
 [[brackets]]
 start = "[["

@@ -2,12 +2,18 @@ use tower_lsp::lsp_types::*;
 
 use crate::vault::{resolve_wikilink, VaultIndex};
 
-/// Returns a `Location` for the wikilink target under the cursor, if any.
+/// Returns a `LocationLink` for the wikilink target under the cursor, if any.
 ///
 /// Finds `[[...]]` around `character`, extracts the target (before `#` or `|`),
-/// resolves it against the vault index, and returns a Location pointing to
-/// the start of the target file.
-pub fn find_definition(line_text: &str, character: u32, index: &VaultIndex) -> Option<Location> {
+/// resolves it against the vault index, and returns a LocationLink pointing to
+/// the start of the target file. The `origin_selection_range` covers the full
+/// `[[...]]` span so Zed underlines the entire wikilink on Cmd+hover.
+pub fn find_definition(
+    line_text: &str,
+    line: u32,
+    character: u32,
+    index: &VaultIndex,
+) -> Option<LocationLink> {
     let cursor = (character as usize).min(line_text.len());
 
     // Walk through all [[...]] spans in the line; return the first one that
@@ -30,9 +36,29 @@ pub fn find_definition(line_text: &str, character: u32, index: &VaultIndex) -> O
             }
             let path = resolve_wikilink(index, target)?;
             let uri = Url::from_file_path(path.as_std_path()).ok()?;
-            return Some(Location {
-                uri,
-                range: Range {
+            return Some(LocationLink {
+                origin_selection_range: Some(Range {
+                    start: Position {
+                        line,
+                        character: open_pos as u32,
+                    },
+                    end: Position {
+                        line,
+                        character: (close_pos + 2) as u32,
+                    },
+                }),
+                target_uri: uri,
+                target_range: Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                },
+                target_selection_range: Range {
                     start: Position {
                         line: 0,
                         character: 0,
@@ -81,12 +107,12 @@ mod tests {
     #[test]
     fn test_definition_simple() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
-        let loc = find_definition("See [[alice]] here", 8, &index);
+        let loc = find_definition("See [[alice]] here", 0, 8, &index);
         assert!(loc.is_some());
         let loc = loc.unwrap();
-        assert!(loc.uri.path().ends_with("alice.md"));
+        assert!(loc.target_uri.path().ends_with("alice.md"));
         assert_eq!(
-            loc.range.start,
+            loc.target_range.start,
             Position {
                 line: 0,
                 character: 0
@@ -95,43 +121,53 @@ mod tests {
     }
 
     #[test]
+    fn test_definition_origin_range() {
+        let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
+        let loc = find_definition("See [[alice]] here", 5, 8, &index).unwrap();
+        // origin_selection_range should cover [[alice]] (positions 4..13)
+        let origin = loc.origin_selection_range.unwrap();
+        assert_eq!(origin.start, Position { line: 5, character: 4 });
+        assert_eq!(origin.end, Position { line: 5, character: 13 });
+    }
+
+    #[test]
     fn test_definition_cursor_on_brackets() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
         // Cursor on the first `[`
-        assert!(find_definition("[[alice]]", 0, &index).is_some());
+        assert!(find_definition("[[alice]]", 0, 0, &index).is_some());
         // Cursor on the last `]`
-        assert!(find_definition("[[alice]]", 8, &index).is_some());
+        assert!(find_definition("[[alice]]", 0, 8, &index).is_some());
     }
 
     #[test]
     fn test_definition_outside_wikilink() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
         // Cursor after the closing `]]`
-        assert!(find_definition("[[alice]] text", 12, &index).is_none());
+        assert!(find_definition("[[alice]] text", 0, 12, &index).is_none());
         // Cursor before the opening `[[`
-        assert!(find_definition("See [[alice]]", 0, &index).is_none());
+        assert!(find_definition("See [[alice]]", 0, 0, &index).is_none());
     }
 
     #[test]
     fn test_definition_with_anchor() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
         // `[[alice#section]]` — target is still "alice"
-        let loc = find_definition("[[alice#section]]", 4, &index);
+        let loc = find_definition("[[alice#section]]", 0, 4, &index);
         assert!(loc.is_some());
-        assert!(loc.unwrap().uri.path().ends_with("alice.md"));
+        assert!(loc.unwrap().target_uri.path().ends_with("alice.md"));
     }
 
     #[test]
     fn test_definition_with_alias() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
-        let loc = find_definition("[[alice|Alice In Wonderland]]", 4, &index);
+        let loc = find_definition("[[alice|Alice In Wonderland]]", 0, 4, &index);
         assert!(loc.is_some());
     }
 
     #[test]
     fn test_definition_broken_link() {
         let index = make_index(&[("/vault/alice.md", "# Alice\n")]);
-        assert!(find_definition("[[nonexistent]]", 4, &index).is_none());
+        assert!(find_definition("[[nonexistent]]", 0, 4, &index).is_none());
     }
 
     #[test]
@@ -142,10 +178,10 @@ mod tests {
         ]);
         let line = "See [[alice]] and [[bob]].";
         // Cursor inside first link
-        let loc = find_definition(line, 8, &index).unwrap();
-        assert!(loc.uri.path().ends_with("alice.md"));
+        let loc = find_definition(line, 0, 8, &index).unwrap();
+        assert!(loc.target_uri.path().ends_with("alice.md"));
         // Cursor inside second link
-        let loc = find_definition(line, 21, &index).unwrap();
-        assert!(loc.uri.path().ends_with("bob.md"));
+        let loc = find_definition(line, 0, 21, &index).unwrap();
+        assert!(loc.target_uri.path().ends_with("bob.md"));
     }
 }
