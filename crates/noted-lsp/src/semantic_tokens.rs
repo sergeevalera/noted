@@ -37,11 +37,11 @@ pub const MOD_MARKUP_PUNCTUATION: u32 = 1 << 19;
 pub fn legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: vec![
-            SemanticTokenType::new("keyword"),  // heading
-            SemanticTokenType::new("variable"), // markup
+            SemanticTokenType::new("heading"),
+            SemanticTokenType::new("markup"),
             SemanticTokenType::new("string"),
             SemanticTokenType::new("comment"),
-            SemanticTokenType::new("operator"), // punctuation
+            SemanticTokenType::new("punctuation"),
         ],
         token_modifiers: vec![
             SemanticTokenModifier::new("h1"),
@@ -72,6 +72,7 @@ pub fn legend() -> SemanticTokensLegend {
 /// `index` is used to distinguish resolved vs broken wikilinks.
 /// Returns tokens sorted by position and LSP delta-encoded.
 pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticToken> {
+    let bold_italic_re = Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap();
     let bold_re = Regex::new(r"\*\*(.+?)\*\*").unwrap();
     let strike_re = Regex::new(r"~~(.+?)~~").unwrap();
     let italic_re = Regex::new(r"\*([^*\n]+?)\*").unwrap();
@@ -172,6 +173,37 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 covered[abs..abs + 3].fill(true);
                 raw.push((ln, abs as u32, 3, TYPE_MARKUP, MOD_CHECKBOX_TODO));
             }
+        }
+
+        // ── Bold+Italic ***content*** ──────────────────────────────────────────
+        for cap in bold_italic_re.captures_iter(line) {
+            let full = cap.get(0).unwrap();
+            if covered[full.start()] {
+                continue;
+            }
+            let content = cap.get(1).unwrap();
+            covered[full.start()..full.end()].fill(true);
+            raw.push((
+                ln,
+                full.start() as u32,
+                3,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
+            raw.push((
+                ln,
+                content.start() as u32,
+                content.len() as u32,
+                TYPE_MARKUP,
+                MOD_BOLD | MOD_ITALIC,
+            ));
+            raw.push((
+                ln,
+                content.end() as u32,
+                3,
+                TYPE_PUNCTUATION,
+                MOD_MARKUP_PUNCTUATION,
+            ));
         }
 
         // ── Bold **content** ─────────────────────────────────────────────────

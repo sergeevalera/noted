@@ -1,0 +1,26 @@
+[
+  { "token_type": "heading", "token_modifiers": ["h1"], "style": ["heading.h1", "heading", "title"] },
+  { "token_type": "heading", "token_modifiers": ["h2"], "style": ["heading.h2", "heading", "title"] },
+  { "token_type": "heading", "token_modifiers": ["h3"], "style": ["heading.h3", "heading", "title"] },
+  { "token_type": "heading", "token_modifiers": ["h4"], "style": ["heading.h4", "heading", "title"] },
+  { "token_type": "heading", "token_modifiers": ["h5"], "style": ["heading.h5", "heading", "title"] },
+  { "token_type": "heading", "token_modifiers": ["h6"], "style": ["heading.h6", "heading", "title"] },
+
+  { "token_type": "markup", "token_modifiers": ["bold", "italic"], "style": ["markup.bold", "emphasis.strong"] },
+  { "token_type": "markup", "token_modifiers": ["bold"], "style": ["markup.bold", "emphasis.strong"] },
+  { "token_type": "markup", "token_modifiers": ["italic"], "style": ["markup.italic", "emphasis"] },
+  { "token_type": "markup", "token_modifiers": ["strikethrough"], "style": ["markup.strikethrough"] },
+  { "token_type": "markup", "token_modifiers": ["code"], "style": ["markup.code", "text.literal"] },
+
+  { "token_type": "markup", "token_modifiers": ["wikilink", "broken"], "style": ["markup.wikilink.broken", "error"] },
+  { "token_type": "markup", "token_modifiers": ["wikilink"], "style": ["markup.wikilink", "link_text"] },
+  { "token_type": "markup", "token_modifiers": ["tag"], "style": ["markup.tag", "label"] },
+  { "token_type": "markup", "token_modifiers": ["callout"], "style": ["markup.callout"] },
+  { "token_type": "markup", "token_modifiers": ["checkbox_done"], "style": ["markup.checkbox_done"] },
+  { "token_type": "markup", "token_modifiers": ["checkbox_todo"], "style": ["markup.checkbox_todo"] },
+  { "token_type": "markup", "token_modifiers": ["math"], "style": ["markup.math"] },
+
+  { "token_type": "string", "token_modifiers": ["link"], "style": ["string.link", "link_text"] },
+  { "token_type": "comment", "token_modifiers": ["frontmatter"], "style": ["comment.frontmatter", "comment"] },
+  { "token_type": "punctuation", "token_modifiers": ["markup_punctuation"], "style": ["punctuation.markup_punctuation", "punctuation.special"] }
+]
