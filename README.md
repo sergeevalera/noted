@@ -174,7 +174,7 @@ Commit the updated `src/parser.c` and `src/tree_sitter/parser.h`.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
 
 ---
 
