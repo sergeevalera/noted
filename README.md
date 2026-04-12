@@ -68,7 +68,7 @@ Add to your Zed `settings.json`:
 
 ### Companion theme
 
-Install [Verdant Garden](https://github.com/sergeevalera/noted-theme) — a dark/light theme designed for comfortable Markdown reading and writing. Optimized for the Noted extension's semantic token mappings, with distinct styles for each heading level, markup type, and syntax element.
+Install [Noted Theme](https://github.com/sergeevalera/noted-theme) — includes **Noted Verdant Garden Dark** and **Noted Verdant Garden Light** variants. Designed for comfortable Markdown reading and writing, with distinct styles for each heading level, markup type, and syntax element.
 
 ---
 
