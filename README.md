@@ -71,7 +71,7 @@ Add to your Zed `settings.json`:
 > **Full per-element styling requires a theme that defines Noted's custom syntax keys.**
 > With a standard Zed theme, the extension still works (wikilinks, diagnostics, code actions, preview, etc.), but visual differentiation is limited — all headings share one color, all markup shares another.
 
-For the complete experience install [Noted Theme](https://github.com/sergeevalera/noted-theme) — includes **Noted Verdant Garden Dark** and **Noted Verdant Garden Light** variants. It defines all custom syntax keys required by this extension: per-level heading colors and weights, distinct styles for bold, italic, wikilinks, broken links, tags, callouts, math, frontmatter, and muted MD punctuation.
+For the complete experience install [Noted Theme](https://github.com/sergeevalera/noted-theme) — available in the Zed Extensions panel (search "Noted Theme"). Includes **Noted Verdant Garden Dark** and **Noted Verdant Garden Light** variants. It defines all custom syntax keys required by this extension: per-level heading colors and weights, distinct styles for bold, italic, wikilinks, broken links, tags, callouts, math, frontmatter, and muted MD punctuation.
 
 **Building your own theme?** The full list of syntax keys the extension uses is in [`languages/noted/semantic_token_rules.json`](languages/noted/semantic_token_rules.json). The semantic specification (what each token represents and its intended styling) is documented in [`zed-md-wysiwyg-spec.md`](zed-md-wysiwyg-spec.md), section *Strategy B — B.7*.
 
