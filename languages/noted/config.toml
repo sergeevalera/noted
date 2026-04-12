@@ -11,7 +11,7 @@ newline = false
 [[brackets]]
 start = "["
 end = "]"
-close = true
+close = false
 newline = false
 
 [[brackets]]
