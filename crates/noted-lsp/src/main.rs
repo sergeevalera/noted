@@ -539,33 +539,14 @@ impl LanguageServer for NotedLsp {
                 return Ok(None);
             }
 
-            let tmp_uri = match Url::from_file_path(&tmp_path) {
-                Ok(u) => u,
-                Err(_) => {
-                    self.client
-                        .show_message(MessageType::ERROR, "Failed to build temp file URL")
-                        .await;
-                    return Ok(None);
-                }
-            };
-
-            if let Err(e) = self
-                .client
-                .show_document(ShowDocumentParams {
-                    uri: tmp_uri,
-                    external: Some(false),
-                    take_focus: Some(true),
-                    selection: None,
-                })
-                .await
-            {
-                self.client
-                    .show_message(
-                        MessageType::ERROR,
-                        format!("Failed to open links file: {}", e),
-                    )
-                    .await;
-            }
+            // Zed does not implement window/showDocument — fall back to the
+            // platform open command (same pattern used for browser preview).
+            #[cfg(target_os = "macos")]
+            let _ = std::process::Command::new("open").arg(&tmp_path).spawn();
+            #[cfg(target_os = "linux")]
+            let _ = std::process::Command::new("xdg-open")
+                .arg(&tmp_path)
+                .spawn();
 
             return Ok(None);
         }

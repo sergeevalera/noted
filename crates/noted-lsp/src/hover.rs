@@ -63,14 +63,7 @@ pub fn compute_note_hover(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option
             .links
             .iter()
             .take(5)
-            .map(|link| {
-                let title = resolve_wikilink(index, &link.target)
-                    .and_then(|p| index.notes.get(&p))
-                    .map(|n| n.title.as_str())
-                    .unwrap_or(link.target.as_str())
-                    .to_string();
-                format!("- [[{}]]", title)
-            })
+            .map(|link| format!("- [[{}]]", link.target))
             .collect();
         let mut section = format!("**Outgoing ({}):**\n{}", out_count, preview.join("\n"));
         if out_count > 5 {
@@ -79,13 +72,13 @@ pub fn compute_note_hover(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option
         parts.push(section);
     }
 
-    let in_titles = incoming_titles(note_path, index);
-    let in_count = in_titles.len();
+    let in_stems = incoming_stems(note_path, index);
+    let in_count = in_stems.len();
     if in_count > 0 {
-        let preview: Vec<String> = in_titles
+        let preview: Vec<String> = in_stems
             .iter()
             .take(5)
-            .map(|t| format!("- [[{}]]", t))
+            .map(|s| format!("- [[{}]]", s))
             .collect();
         let mut section = format!("**Incoming ({}):**\n{}", in_count, preview.join("\n"));
         if in_count > 5 {
@@ -119,32 +112,28 @@ pub fn generate_links_md(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option<
         out.push_str("_No outgoing links._\n");
     } else {
         for link in &note.links {
-            let title = resolve_wikilink(index, &link.target)
-                .and_then(|p| index.notes.get(&p))
-                .map(|n| n.title.as_str())
-                .unwrap_or(link.target.as_str());
-            out.push_str(&format!("- [[{}]]\n", title));
+            out.push_str(&format!("- [[{}]]\n", link.target));
         }
     }
 
     out.push('\n');
 
-    let sources = incoming_titles(note_path, index);
-    out.push_str(&format!("## Incoming ({})\n\n", sources.len()));
-    if sources.is_empty() {
+    let stems = incoming_stems(note_path, index);
+    out.push_str(&format!("## Incoming ({})\n\n", stems.len()));
+    if stems.is_empty() {
         out.push_str("_No incoming links._\n");
     } else {
-        for title in &sources {
-            out.push_str(&format!("- [[{}]]\n", title));
+        for stem in &stems {
+            out.push_str(&format!("- [[{}]]\n", stem));
         }
     }
 
     Some(out)
 }
 
-/// Collect sorted titles of all notes that link to `note_path`.
-fn incoming_titles(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
-    let mut titles: Vec<String> = index
+/// Collect sorted file stems of all notes that link to `note_path`.
+fn incoming_stems(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
+    let mut stems: Vec<String> = index
         .notes
         .values()
         .filter(|n| {
@@ -153,10 +142,10 @@ fn incoming_titles(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
                     .iter()
                     .any(|l| resolve_wikilink(index, &l.target).as_ref() == Some(note_path))
         })
-        .map(|n| n.title.clone())
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
         .collect();
-    titles.sort();
-    titles
+    stems.sort();
+    stems
 }
 
 /// Find the wikilink target at `character` in `line_text`.
