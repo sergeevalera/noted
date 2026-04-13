@@ -27,7 +27,7 @@ use code_actions::compute_code_actions;
 use completion::compute_completions;
 use definition::find_definition;
 use diagnostics::compute_diagnostics;
-use hover::compute_hover;
+use hover::{compute_hover, compute_note_hover, generate_links_md};
 use inlay_hints::compute_inlay_hints;
 use preview::{start_preview_server, PreviewState};
 use rename::{compute_rename, prepare_rename};
@@ -209,7 +209,10 @@ impl LanguageServer for NotedLsp {
                     work_done_progress_options: Default::default(),
                 })),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["noted.openPreview".to_string()],
+                    commands: vec![
+                        "noted.openPreview".to_string(),
+                        "noted.showLinks".to_string(),
+                    ],
                     work_done_progress_options: Default::default(),
                 }),
                 ..Default::default()
@@ -287,7 +290,24 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
-        Ok(compute_hover(line_text, position.character, &index))
+
+        // Wikilink hover takes priority.
+        if let Some(hover) = compute_hover(line_text, position.character, &index) {
+            return Ok(Some(hover));
+        }
+
+        // Note-level hover on line 0: show in/out link summary.
+        if position.line == 0 {
+            if let Some(path) = uri
+                .to_file_path()
+                .ok()
+                .and_then(|p| Utf8PathBuf::from_path_buf(p).ok())
+            {
+                return Ok(compute_note_hover(&path, &index));
+            }
+        }
+
+        Ok(None)
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
@@ -431,6 +451,13 @@ impl LanguageServer for NotedLsp {
             arguments: Some(vec![serde_json::Value::String(uri.to_string())]),
         }));
 
+        // Add "Show All Links" command action
+        actions.push(CodeActionOrCommand::Command(Command {
+            title: "Show All Links".to_string(),
+            command: "noted.showLinks".to_string(),
+            arguments: Some(vec![serde_json::Value::String(uri.to_string())]),
+        }));
+
         Ok(Some(actions))
     }
 
@@ -465,6 +492,82 @@ impl LanguageServer for NotedLsp {
                 .await;
 
             return Ok(Some(serde_json::Value::String(url)));
+        }
+
+        if params.command == "noted.showLinks" {
+            let uri = params
+                .arguments
+                .first()
+                .and_then(|v| v.as_str())
+                .and_then(|s| Url::parse(s).ok());
+
+            let Some(uri) = uri else {
+                self.client
+                    .show_message(MessageType::ERROR, "No document URI provided")
+                    .await;
+                return Ok(None);
+            };
+
+            let note_path = match uri
+                .to_file_path()
+                .ok()
+                .and_then(|p| Utf8PathBuf::from_path_buf(p).ok())
+            {
+                Some(p) => p,
+                None => {
+                    self.client
+                        .show_message(MessageType::ERROR, "Invalid document path")
+                        .await;
+                    return Ok(None);
+                }
+            };
+
+            let index = self.index.read().await;
+            let content = generate_links_md(&note_path, &index)
+                .unwrap_or_else(|| "# Links\n\n_Note not found in index._\n".to_string());
+            drop(index);
+
+            let stem = note_path.file_stem().unwrap_or("note");
+            let tmp_path = std::env::temp_dir().join(format!("noted-links-{}.md", stem));
+            if let Err(e) = std::fs::write(&tmp_path, &content) {
+                self.client
+                    .show_message(
+                        MessageType::ERROR,
+                        format!("Failed to write links file: {}", e),
+                    )
+                    .await;
+                return Ok(None);
+            }
+
+            let tmp_uri = match Url::from_file_path(&tmp_path) {
+                Ok(u) => u,
+                Err(_) => {
+                    self.client
+                        .show_message(MessageType::ERROR, "Failed to build temp file URL")
+                        .await;
+                    return Ok(None);
+                }
+            };
+
+            if let Err(e) = self
+                .client
+                .show_document(ShowDocumentParams {
+                    uri: tmp_uri,
+                    external: Some(false),
+                    take_focus: Some(true),
+                    selection: None,
+                })
+                .await
+            {
+                self.client
+                    .show_message(
+                        MessageType::ERROR,
+                        format!("Failed to open links file: {}", e),
+                    )
+                    .await;
+            }
+
+            return Ok(None);
         }
 
         Ok(None)

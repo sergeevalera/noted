@@ -1,3 +1,4 @@
+use camino::Utf8PathBuf;
 use tower_lsp::lsp_types::*;
 
 use crate::vault::{resolve_wikilink, VaultIndex};
@@ -47,6 +48,115 @@ pub fn compute_hover(line_text: &str, character: u32, index: &VaultIndex) -> Opt
         }),
         range: None,
     })
+}
+
+/// Build hover content for the note itself (cursor on line 0, not over a wikilink).
+///
+/// Shows a compact summary: outgoing and incoming link counts with up to 5 previews each.
+pub fn compute_note_hover(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option<Hover> {
+    let note = index.notes.get(note_path)?;
+    let mut parts: Vec<String> = vec![format!("## {}", note.title)];
+
+    let out_count = note.links.len();
+    if out_count > 0 {
+        let preview: Vec<String> = note
+            .links
+            .iter()
+            .take(5)
+            .map(|link| {
+                let title = resolve_wikilink(index, &link.target)
+                    .and_then(|p| index.notes.get(&p))
+                    .map(|n| n.title.as_str())
+                    .unwrap_or(link.target.as_str())
+                    .to_string();
+                format!("- [[{}]]", title)
+            })
+            .collect();
+        let mut section = format!("**Outgoing ({}):**\n{}", out_count, preview.join("\n"));
+        if out_count > 5 {
+            section.push_str(&format!("\n_…and {} more_", out_count - 5));
+        }
+        parts.push(section);
+    }
+
+    let in_titles = incoming_titles(note_path, index);
+    let in_count = in_titles.len();
+    if in_count > 0 {
+        let preview: Vec<String> = in_titles
+            .iter()
+            .take(5)
+            .map(|t| format!("- [[{}]]", t))
+            .collect();
+        let mut section = format!("**Incoming ({}):**\n{}", in_count, preview.join("\n"));
+        if in_count > 5 {
+            section.push_str(&format!("\n_…and {} more_", in_count - 5));
+        }
+        parts.push(section);
+    }
+
+    if out_count == 0 && in_count == 0 {
+        parts.push("_No links_".to_string());
+    } else {
+        parts.push("_Cmd+. → Show All Links_".to_string());
+    }
+
+    Some(Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: parts.join("\n\n"),
+        }),
+        range: None,
+    })
+}
+
+/// Generate the full in/out links list as Markdown for writing to a temp file.
+pub fn generate_links_md(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option<String> {
+    let note = index.notes.get(note_path)?;
+    let mut out = format!("# Links: {}\n\n", note.title);
+
+    out.push_str(&format!("## Outgoing ({})\n\n", note.links.len()));
+    if note.links.is_empty() {
+        out.push_str("_No outgoing links._\n");
+    } else {
+        for link in &note.links {
+            let title = resolve_wikilink(index, &link.target)
+                .and_then(|p| index.notes.get(&p))
+                .map(|n| n.title.as_str())
+                .unwrap_or(link.target.as_str());
+            out.push_str(&format!("- [[{}]]\n", title));
+        }
+    }
+
+    out.push('\n');
+
+    let sources = incoming_titles(note_path, index);
+    out.push_str(&format!("## Incoming ({})\n\n", sources.len()));
+    if sources.is_empty() {
+        out.push_str("_No incoming links._\n");
+    } else {
+        for title in &sources {
+            out.push_str(&format!("- [[{}]]\n", title));
+        }
+    }
+
+    Some(out)
+}
+
+/// Collect sorted titles of all notes that link to `note_path`.
+fn incoming_titles(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
+    let mut titles: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| {
+            n.path != *note_path
+                && n.links
+                    .iter()
+                    .any(|l| resolve_wikilink(index, &l.target).as_ref() == Some(note_path))
+        })
+        .map(|n| n.title.clone())
+        .collect();
+    titles.sort();
+    titles
 }
 
 /// Find the wikilink target at `character` in `line_text`.
