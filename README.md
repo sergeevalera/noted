@@ -13,11 +13,11 @@ For the best experience, enable semantic tokens and install the companion theme 
 | **Wikilink completion** | Type `[[` to autocomplete note names from your vault |
 | **Go-to-definition** | Cmd+click on a wikilink to jump to the target file |
 | **Broken link diagnostics** | Unresolved wikilinks are underlined as errors |
-| **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count |
+| **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count. Hover over a `#tag` to see notes with that tag. Hover on line 1 of a note to see in/out link summary |
 | **Document symbols** | `Cmd+Shift+O` — hierarchical heading tree |
 | **Workspace symbols** | `Cmd+T` — search headings across all vault files |
 | **Rename** | F2 on a wikilink — renames the target across all files |
-| **Code actions** | `Cmd+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables |
+| **Code actions** | `Cmd+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables, show all in/out links, show notes by tag |
 | **Semantic tokens** | Headings, bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter |
 | **Inlay hints** | `[x]` shows `✓`, `[ ]` shows `○` |
 | **Live preview** | `Cmd+.` → "Open Preview" — browser preview with live WebSocket sync |
@@ -90,6 +90,16 @@ Open any directory with `.md` files as your workspace. The vault is indexed on s
 - Cmd+click to jump to the target file
 - F2 to rename — updates all references across the vault
 
+### Tags
+
+- Hover over `#tag` to see how many notes have that tag and a short preview
+- `Cmd+.` on a `#tag` → "Show notes tagged #tag" — opens a Markdown file listing all matching notes
+
+### Links
+
+- Hover on line 1 of any note to see outgoing and incoming link counts with a short preview
+- `Cmd+.` on any line → "Show All Links" — opens a Markdown file with the full in/out link list
+
 ### Code actions (`Cmd+.`)
 
 - Toggle checkboxes (`[x]` ↔ `[ ]`)
@@ -98,6 +108,8 @@ Open any directory with `.md` files as your workspace. The vault is indexed on s
 - Insert callout or table
 - Change callout type
 - Open live preview
+- Show all in/out links for the current note
+- Show notes tagged #tag (when cursor is on a tag)
 
 ### Live preview
 
