@@ -1,6 +1,8 @@
 # noted
 
-A Zed IDE extension for Markdown knowledge bases — wikilinks, callouts, tags, smart navigation, and live preview. Works with Obsidian vault file structure.
+A language server for Obsidian-flavored Markdown in Zed. Handles wikilink resolution, diagnostics, hover previews, rename refactoring, tag navigation, and live HTML preview via a local server.
+
+For the best experience, enable semantic tokens and install the companion theme — see [Setup](#setup).
 
 ---
 
