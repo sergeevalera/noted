@@ -169,6 +169,30 @@ all `[[old name]]` across all workspace files to `[[new name]]`.
 User types part of a heading → LSP returns matching results
 with file and position → Zed opens the file at the right line.
 
+#### B.8. Note-level hover + "Show All Links" — In/out link navigation
+
+**Design decision (April 2026):** Obsidian shows incoming and outgoing links in
+dedicated sidebar panels. Zed extensions cannot create custom panels, so a two-layer
+approach is used instead:
+
+**Layer 1 — Hover on line 1:** When the cursor is on the first line of a note (not
+over a wikilink), hover shows a compact link summary:
+- Note title
+- Outgoing links (up to 5, with "…and N more" if larger)
+- Incoming links (up to 5, sourced by scanning the vault index)
+
+**Layer 2 — "Show All Links" code action:** `Cmd+.` on any line → "Show All Links"
+triggers `noted.showLinks`. The LSP generates a full Markdown file listing all
+outgoing and incoming links, writes it to `/tmp/noted-links-<stem>.md`, then opens
+it in Zed via `window/showDocument`.
+
+**Temp file lifecycle:** No cleanup. The file at `/tmp/noted-links-<stem>.md` persists
+until OS clears temp or manual deletion. Each invocation overwrites the same path, so
+files don't accumulate.
+
+**Why not a clickable button in hover:** `command:` URI support in Zed hover popups
+is unconfirmed. The code action is a reliable, already-working mechanism.
+
 #### Summary: what B adds on top of A
 
 **You see in the editor:** headings visually stand out with color and weight,

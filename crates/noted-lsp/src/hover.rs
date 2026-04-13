@@ -1,6 +1,15 @@
+use std::sync::OnceLock;
+
+use camino::Utf8PathBuf;
+use regex::Regex;
 use tower_lsp::lsp_types::*;
 
 use crate::vault::{resolve_wikilink, VaultIndex};
+
+static TAG_RE: OnceLock<Regex> = OnceLock::new();
+fn tag_re() -> &'static Regex {
+    TAG_RE.get_or_init(|| Regex::new(r"#([A-Za-z][\w\-/]*)").unwrap())
+}
 
 /// Build hover content for the wikilink under the cursor, if any.
 ///
@@ -47,6 +56,193 @@ pub fn compute_hover(line_text: &str, character: u32, index: &VaultIndex) -> Opt
         }),
         range: None,
     })
+}
+
+/// Build hover content for the note itself (cursor on line 0, not over a wikilink).
+///
+/// Shows a compact summary: outgoing and incoming link counts with up to 5 previews each.
+pub fn compute_note_hover(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option<Hover> {
+    let note = index.notes.get(note_path)?;
+    let mut parts: Vec<String> = vec![format!("## {}", note.title)];
+
+    let out_count = note.links.len();
+    if out_count > 0 {
+        let preview: Vec<String> = note
+            .links
+            .iter()
+            .take(5)
+            .map(|link| format!("- [[{}]]", link.target))
+            .collect();
+        let mut section = format!("**Outgoing ({}):**\n{}", out_count, preview.join("\n"));
+        if out_count > 5 {
+            section.push_str(&format!("\n_…and {} more_", out_count - 5));
+        }
+        parts.push(section);
+    }
+
+    let in_stems = incoming_stems(note_path, index);
+    let in_count = in_stems.len();
+    if in_count > 0 {
+        let preview: Vec<String> = in_stems
+            .iter()
+            .take(5)
+            .map(|s| format!("- [[{}]]", s))
+            .collect();
+        let mut section = format!("**Incoming ({}):**\n{}", in_count, preview.join("\n"));
+        if in_count > 5 {
+            section.push_str(&format!("\n_…and {} more_", in_count - 5));
+        }
+        parts.push(section);
+    }
+
+    if out_count == 0 && in_count == 0 {
+        parts.push("_No links_".to_string());
+    } else {
+        parts.push("_Cmd+. → Show All Links_".to_string());
+    }
+
+    Some(Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: parts.join("\n\n"),
+        }),
+        range: None,
+    })
+}
+
+/// Generate the full in/out links list as Markdown for writing to a temp file.
+pub fn generate_links_md(note_path: &Utf8PathBuf, index: &VaultIndex) -> Option<String> {
+    let note = index.notes.get(note_path)?;
+    let mut out = format!("# Links: {}\n\n", note.title);
+
+    out.push_str(&format!("## Outgoing ({})\n\n", note.links.len()));
+    if note.links.is_empty() {
+        out.push_str("_No outgoing links._\n");
+    } else {
+        for link in &note.links {
+            out.push_str(&format!("- [[{}]]\n", link.target));
+        }
+    }
+
+    out.push('\n');
+
+    let stems = incoming_stems(note_path, index);
+    out.push_str(&format!("## Incoming ({})\n\n", stems.len()));
+    if stems.is_empty() {
+        out.push_str("_No incoming links._\n");
+    } else {
+        for stem in &stems {
+            out.push_str(&format!("- [[{}]]\n", stem));
+        }
+    }
+
+    Some(out)
+}
+
+/// Collect sorted file stems of all notes that link to `note_path`.
+fn incoming_stems(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
+    let mut stems: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| {
+            n.path != *note_path
+                && n.links
+                    .iter()
+                    .any(|l| resolve_wikilink(index, &l.target).as_ref() == Some(note_path))
+        })
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
+        .collect();
+    stems.sort();
+    stems
+}
+
+/// Return the tag name (without `#`) if the cursor is over a `#tag` in `line_text`.
+pub fn find_tag_at(line_text: &str, character: u32) -> Option<String> {
+    let cursor = (character as usize).min(line_text.len());
+    for cap in tag_re().captures_iter(line_text) {
+        let m = cap.get(0).unwrap();
+        if cursor >= m.start() && cursor <= m.end() {
+            return Some(cap[1].to_string());
+        }
+    }
+    None
+}
+
+/// Build hover content when the cursor is on a `#tag`.
+///
+/// Shows note count and up to 5 notes that have this tag.
+pub fn compute_tag_hover(line_text: &str, character: u32, index: &VaultIndex) -> Option<Hover> {
+    let tag_name = find_tag_at(line_text, character)?;
+
+    let mut stems: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| n.tags.iter().any(|t| t.name == tag_name))
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
+        .collect();
+    stems.sort();
+
+    let count = stems.len();
+    if count == 0 {
+        return None;
+    }
+
+    let preview: Vec<String> = stems
+        .iter()
+        .take(5)
+        .map(|s| format!("- [[{}]]", s))
+        .collect();
+    let mut body = preview.join("\n");
+    if count > 5 {
+        body.push_str(&format!("\n_…and {} more_", count - 5));
+    }
+
+    let mut parts = vec![
+        format!(
+            "**#{}** — {} note{}",
+            tag_name,
+            count,
+            if count == 1 { "" } else { "s" }
+        ),
+        body,
+    ];
+    if count > 5 {
+        parts.push("_Cmd+. → Show notes tagged #tag_".to_string());
+    }
+
+    Some(Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: parts.join("\n\n"),
+        }),
+        range: None,
+    })
+}
+
+/// Generate a Markdown file listing all notes with `tag_name`.
+pub fn generate_tag_md(tag_name: &str, index: &VaultIndex) -> String {
+    let mut stems: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| n.tags.iter().any(|t| t.name == tag_name))
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
+        .collect();
+    stems.sort();
+
+    let mut out = format!("# Notes tagged #{}\n\n", tag_name);
+    if stems.is_empty() {
+        out.push_str("_No notes with this tag._\n");
+    } else {
+        out.push_str(&format!(
+            "{} note{}\n\n",
+            stems.len(),
+            if stems.len() == 1 { "" } else { "s" }
+        ));
+        for stem in &stems {
+            out.push_str(&format!("- [[{}]]\n", stem));
+        }
+    }
+    out
 }
 
 /// Find the wikilink target at `character` in `line_text`.

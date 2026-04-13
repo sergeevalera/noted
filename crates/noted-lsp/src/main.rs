@@ -27,7 +27,10 @@ use code_actions::compute_code_actions;
 use completion::compute_completions;
 use definition::find_definition;
 use diagnostics::compute_diagnostics;
-use hover::compute_hover;
+use hover::{
+    compute_hover, compute_note_hover, compute_tag_hover, find_tag_at, generate_links_md,
+    generate_tag_md,
+};
 use inlay_hints::compute_inlay_hints;
 use preview::{start_preview_server, PreviewState};
 use rename::{compute_rename, prepare_rename};
@@ -209,7 +212,11 @@ impl LanguageServer for NotedLsp {
                     work_done_progress_options: Default::default(),
                 })),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["noted.openPreview".to_string()],
+                    commands: vec![
+                        "noted.openPreview".to_string(),
+                        "noted.showLinks".to_string(),
+                        "noted.showTag".to_string(),
+                    ],
                     work_done_progress_options: Default::default(),
                 }),
                 ..Default::default()
@@ -287,7 +294,29 @@ impl LanguageServer for NotedLsp {
         drop(documents);
         let line_text = text.lines().nth(position.line as usize).unwrap_or("");
         let index = self.index.read().await;
-        Ok(compute_hover(line_text, position.character, &index))
+
+        // Wikilink hover takes priority.
+        if let Some(hover) = compute_hover(line_text, position.character, &index) {
+            return Ok(Some(hover));
+        }
+
+        // Tag hover: cursor on #tag.
+        if let Some(hover) = compute_tag_hover(line_text, position.character, &index) {
+            return Ok(Some(hover));
+        }
+
+        // Note-level hover on line 0: show in/out link summary.
+        if position.line == 0 {
+            if let Some(path) = uri
+                .to_file_path()
+                .ok()
+                .and_then(|p| Utf8PathBuf::from_path_buf(p).ok())
+            {
+                return Ok(compute_note_hover(&path, &index));
+            }
+        }
+
+        Ok(None)
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
@@ -431,6 +460,26 @@ impl LanguageServer for NotedLsp {
             arguments: Some(vec![serde_json::Value::String(uri.to_string())]),
         }));
 
+        // Add "Show All Links" command action
+        actions.push(CodeActionOrCommand::Command(Command {
+            title: "Show All Links".to_string(),
+            command: "noted.showLinks".to_string(),
+            arguments: Some(vec![serde_json::Value::String(uri.to_string())]),
+        }));
+
+        // Add "Show notes tagged #xxx" when cursor is on a tag
+        let line_text = text
+            .lines()
+            .nth(params.range.start.line as usize)
+            .unwrap_or("");
+        if let Some(tag_name) = find_tag_at(line_text, params.range.start.character) {
+            actions.push(CodeActionOrCommand::Command(Command {
+                title: format!("Show notes tagged #{}", tag_name),
+                command: "noted.showTag".to_string(),
+                arguments: Some(vec![serde_json::Value::String(tag_name)]),
+            }));
+        }
+
         Ok(Some(actions))
     }
 
@@ -465,6 +514,99 @@ impl LanguageServer for NotedLsp {
                 .await;
 
             return Ok(Some(serde_json::Value::String(url)));
+        }
+
+        if params.command == "noted.showLinks" {
+            let uri = params
+                .arguments
+                .first()
+                .and_then(|v| v.as_str())
+                .and_then(|s| Url::parse(s).ok());
+
+            let Some(uri) = uri else {
+                self.client
+                    .show_message(MessageType::ERROR, "No document URI provided")
+                    .await;
+                return Ok(None);
+            };
+
+            let note_path = match uri
+                .to_file_path()
+                .ok()
+                .and_then(|p| Utf8PathBuf::from_path_buf(p).ok())
+            {
+                Some(p) => p,
+                None => {
+                    self.client
+                        .show_message(MessageType::ERROR, "Invalid document path")
+                        .await;
+                    return Ok(None);
+                }
+            };
+
+            let index = self.index.read().await;
+            let content = generate_links_md(&note_path, &index)
+                .unwrap_or_else(|| "# Links\n\n_Note not found in index._\n".to_string());
+            drop(index);
+
+            let stem = note_path.file_stem().unwrap_or("note");
+            let tmp_path = std::env::temp_dir().join(format!("noted-links-{}.md", stem));
+            if let Err(e) = std::fs::write(&tmp_path, &content) {
+                self.client
+                    .show_message(
+                        MessageType::ERROR,
+                        format!("Failed to write links file: {}", e),
+                    )
+                    .await;
+                return Ok(None);
+            }
+
+            // Zed does not implement window/showDocument — fall back to the
+            // platform open command (same pattern used for browser preview).
+            #[cfg(target_os = "macos")]
+            let _ = std::process::Command::new("open").arg(&tmp_path).spawn();
+            #[cfg(target_os = "linux")]
+            let _ = std::process::Command::new("xdg-open")
+                .arg(&tmp_path)
+                .spawn();
+
+            return Ok(None);
+        }
+
+        if params.command == "noted.showTag" {
+            let tag_name = match params.arguments.first().and_then(|v| v.as_str()) {
+                Some(t) => t.to_string(),
+                None => {
+                    self.client
+                        .show_message(MessageType::ERROR, "No tag name provided")
+                        .await;
+                    return Ok(None);
+                }
+            };
+
+            let index = self.index.read().await;
+            let content = generate_tag_md(&tag_name, &index);
+            drop(index);
+
+            let tmp_path = std::env::temp_dir().join(format!("noted-tag-{}.md", tag_name));
+            if let Err(e) = std::fs::write(&tmp_path, &content) {
+                self.client
+                    .show_message(
+                        MessageType::ERROR,
+                        format!("Failed to write tag file: {}", e),
+                    )
+                    .await;
+                return Ok(None);
+            }
+
+            #[cfg(target_os = "macos")]
+            let _ = std::process::Command::new("open").arg(&tmp_path).spawn();
+            #[cfg(target_os = "linux")]
+            let _ = std::process::Command::new("xdg-open")
+                .arg(&tmp_path)
+                .spawn();
+
+            return Ok(None);
         }
 
         Ok(None)
