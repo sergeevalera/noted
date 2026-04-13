@@ -1,7 +1,15 @@
+use std::sync::OnceLock;
+
 use camino::Utf8PathBuf;
+use regex::Regex;
 use tower_lsp::lsp_types::*;
 
 use crate::vault::{resolve_wikilink, VaultIndex};
+
+static TAG_RE: OnceLock<Regex> = OnceLock::new();
+fn tag_re() -> &'static Regex {
+    TAG_RE.get_or_init(|| Regex::new(r"#([A-Za-z][\w\-/]*)").unwrap())
+}
 
 /// Build hover content for the wikilink under the cursor, if any.
 ///
@@ -146,6 +154,95 @@ fn incoming_stems(note_path: &Utf8PathBuf, index: &VaultIndex) -> Vec<String> {
         .collect();
     stems.sort();
     stems
+}
+
+/// Return the tag name (without `#`) if the cursor is over a `#tag` in `line_text`.
+pub fn find_tag_at(line_text: &str, character: u32) -> Option<String> {
+    let cursor = (character as usize).min(line_text.len());
+    for cap in tag_re().captures_iter(line_text) {
+        let m = cap.get(0).unwrap();
+        if cursor >= m.start() && cursor <= m.end() {
+            return Some(cap[1].to_string());
+        }
+    }
+    None
+}
+
+/// Build hover content when the cursor is on a `#tag`.
+///
+/// Shows note count and up to 5 notes that have this tag.
+pub fn compute_tag_hover(line_text: &str, character: u32, index: &VaultIndex) -> Option<Hover> {
+    let tag_name = find_tag_at(line_text, character)?;
+
+    let mut stems: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| n.tags.iter().any(|t| t.name == tag_name))
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
+        .collect();
+    stems.sort();
+
+    let count = stems.len();
+    if count == 0 {
+        return None;
+    }
+
+    let preview: Vec<String> = stems
+        .iter()
+        .take(5)
+        .map(|s| format!("- [[{}]]", s))
+        .collect();
+    let mut body = preview.join("\n");
+    if count > 5 {
+        body.push_str(&format!("\n_…and {} more_", count - 5));
+    }
+
+    let mut parts = vec![
+        format!(
+            "**#{}** — {} note{}",
+            tag_name,
+            count,
+            if count == 1 { "" } else { "s" }
+        ),
+        body,
+    ];
+    if count > 5 {
+        parts.push("_Cmd+. → Show notes tagged #tag_".to_string());
+    }
+
+    Some(Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: parts.join("\n\n"),
+        }),
+        range: None,
+    })
+}
+
+/// Generate a Markdown file listing all notes with `tag_name`.
+pub fn generate_tag_md(tag_name: &str, index: &VaultIndex) -> String {
+    let mut stems: Vec<String> = index
+        .notes
+        .values()
+        .filter(|n| n.tags.iter().any(|t| t.name == tag_name))
+        .map(|n| n.path.file_stem().unwrap_or(n.title.as_str()).to_string())
+        .collect();
+    stems.sort();
+
+    let mut out = format!("# Notes tagged #{}\n\n", tag_name);
+    if stems.is_empty() {
+        out.push_str("_No notes with this tag._\n");
+    } else {
+        out.push_str(&format!(
+            "{} note{}\n\n",
+            stems.len(),
+            if stems.len() == 1 { "" } else { "s" }
+        ));
+        for stem in &stems {
+            out.push_str(&format!("- [[{}]]\n", stem));
+        }
+    }
+    out
 }
 
 /// Find the wikilink target at `character` in `line_text`.
