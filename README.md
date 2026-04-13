@@ -11,7 +11,7 @@ For the best experience, enable semantic tokens and install the companion theme 
 | Feature | Description |
 |---|---|
 | **Wikilink completion** | Type `[[` to autocomplete note names from your vault |
-| **Go-to-definition** | Cmd+click on `[[wikilink]]` to jump to the target file |
+| **Go-to-definition** | Cmd+click on a wikilink to jump to the target file |
 | **Broken link diagnostics** | Unresolved wikilinks are underlined as errors |
 | **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count |
 | **Document symbols** | `Cmd+Shift+O` — hierarchical heading tree |
