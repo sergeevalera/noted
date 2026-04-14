@@ -563,12 +563,7 @@ impl LanguageServer for NotedLsp {
 
             // Zed does not implement window/showDocument — fall back to the
             // platform open command (same pattern used for browser preview).
-            #[cfg(target_os = "macos")]
-            let _ = std::process::Command::new("open").arg(&tmp_path).spawn();
-            #[cfg(target_os = "linux")]
-            let _ = std::process::Command::new("xdg-open")
-                .arg(&tmp_path)
-                .spawn();
+            open_file(&tmp_path);
 
             return Ok(None);
         }
@@ -599,12 +594,7 @@ impl LanguageServer for NotedLsp {
                 return Ok(None);
             }
 
-            #[cfg(target_os = "macos")]
-            let _ = std::process::Command::new("open").arg(&tmp_path).spawn();
-            #[cfg(target_os = "linux")]
-            let _ = std::process::Command::new("xdg-open")
-                .arg(&tmp_path)
-                .spawn();
+            open_file(&tmp_path);
 
             return Ok(None);
         }
@@ -659,6 +649,18 @@ impl LanguageServer for NotedLsp {
             &index,
         ))
     }
+}
+
+/// Open a file with the platform's default handler.
+fn open_file(path: &std::path::Path) {
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(path).spawn();
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd")
+        .args(["/c", "start", "", &path.display().to_string()])
+        .spawn();
 }
 
 #[tokio::main]
