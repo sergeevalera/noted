@@ -15,14 +15,14 @@ For the best experience, enable semantic tokens and install the companion theme 
 | Feature | Description |
 |---|---|
 | **Wikilink completion** | Type `[[` to autocomplete note names from your vault |
-| **Go-to-definition** | Cmd+click on a wikilink to jump to the target file |
+| **Go-to-definition** | Cmd/Ctrl+click on a wikilink to jump to the target file |
 | **Broken link diagnostics** | Unresolved wikilinks are underlined as errors |
 | **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count. Hover over a `#tag` to see notes with that tag. Hover on line 1 of a note to see in/out link summary |
 | **Document outline** | Heading tree in the Outline Panel with search and navigation |
 | **Rename** | F2 on a wikilink — renames the target across all files |
-| **Code actions** | `Cmd+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables, show all in/out links, show notes by tag |
+| **Code actions** | `Cmd/Ctrl+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables, show all in/out links, show notes by tag |
 | **Semantic tokens** | Headings, bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter |
-| **Live preview** | `Cmd+.` → "Open Preview" — browser preview with live WebSocket sync |
+| **Live preview** | `Cmd/Ctrl+.` → "Open Preview" — browser preview with live WebSocket sync |
 | **Vault indexer** | Scans on open, reindexes on save |
 | **Tree-sitter grammar** | Wikilinks, callouts, tags, embeds, checkboxes |
 
@@ -45,7 +45,7 @@ cargo build --release -p noted-lsp
 export NOTED_LSP_PATH=/path/to/noted/target/release/noted-lsp
 
 # Install as dev extension in Zed
-# Cmd+Shift+P → "zed: install dev extension" → select this folder
+# Cmd/Ctrl+Shift+P → "zed: install dev extension" → select this folder
 ```
 
 ---
@@ -89,20 +89,20 @@ Open any directory with `.md` files as your workspace. The vault is indexed on s
 
 - Type `[[` to get completions from the vault index
 - Hover over `[[note]]` for a preview (title + first paragraph + tags + backlinks)
-- Cmd+click to jump to the target file
+- Cmd/Ctrl+click to jump to the target file
 - F2 to rename — updates all references across the vault
 
 ### Tags
 
 - Hover over `#tag` to see how many notes have that tag and a short preview
-- `Cmd+.` on a `#tag` → "Show notes tagged #tag" — opens a Markdown file listing all matching notes
+- `Cmd/Ctrl+.` on a `#tag` → "Show notes tagged #tag" — opens a Markdown file listing all matching notes
 
 ### Links
 
 - Hover on line 1 of any note to see outgoing and incoming link counts with a short preview
-- `Cmd+.` on any line → "Show All Links" — opens a Markdown file with the full in/out link list
+- `Cmd/Ctrl+.` on any line → "Show All Links" — opens a Markdown file with the full in/out link list
 
-### Code actions (`Cmd+.`)
+### Code actions (`Cmd/Ctrl+.` or lightbulb)
 
 - Toggle checkboxes (`[x]` ↔ `[ ]`)
 - Wrap selection in **bold**, *italic*, ~~strikethrough~~, `code`, `[[wikilink]]`
@@ -115,7 +115,7 @@ Open any directory with `.md` files as your workspace. The vault is indexed on s
 
 ### Live preview
 
-1. `Cmd+.` on any line → "Open Preview"
+1. `Cmd/Ctrl+.` on any line → "Open Preview"
 2. Copy the URL from the notification
 3. Open in browser — updates live as you type
 
