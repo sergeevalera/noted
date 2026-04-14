@@ -92,7 +92,7 @@ fn wikilink_to_html(caps: &regex::Captures) -> String {
     )
 }
 
-fn capitalize(s: &str) -> String {
+pub(crate) fn capitalize(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
         None => String::new(),

@@ -130,7 +130,7 @@ fn extract_headings(text: &str) -> Vec<HeadingInfo> {
                 level,
                 text,
                 line: i as u32,
-                line_len: line.len() as u32,
+                line_len: line.encode_utf16().count() as u32,
             })
         })
         .collect()

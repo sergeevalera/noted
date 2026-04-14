@@ -1,5 +1,7 @@
 use tower_lsp::lsp_types::*;
 
+use crate::render::capitalize;
+
 /// Compute code actions available at the given selection/cursor position.
 ///
 /// Supported actions:
@@ -254,14 +256,6 @@ fn change_callout_type(uri: &Url, line: u32, line_text: &str) -> Option<Vec<Code
         .collect();
 
     Some(actions)
-}
-
-fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
 }
 
 fn make_edit_action(uri: &Url, title: &str, range: Range, new_text: &str) -> CodeAction {

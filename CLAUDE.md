@@ -14,12 +14,13 @@
 
 **noted** — a Zed IDE extension for Markdown knowledge bases. Supports wikilinks,
 callouts, tags, smart navigation, and live preview. Works with Obsidian vault file
-structure. Includes a custom Tree-sitter grammar, an LSP server written in Rust,
-and a companion theme.
+structure. Includes an LSP server written in Rust, a custom Tree-sitter grammar
+(in a separate repo), and a companion theme.
 
 ## Repositories
 
-- `noted/` — main extension (extension + LSP + grammar)
+- `noted/` — main extension (extension + LSP + language queries)
+- `tree-sitter-noted/` — Tree-sitter grammar (separate repo, cloned by Zed during install)
 - `noted-theme/` — companion theme (separate extension, JSON-only)
 
 ## Architecture
@@ -32,11 +33,11 @@ and a companion theme.
 │  │  Extension   │    │  Editor               │   │
 │  │  (WASM)      │    │  + Tree-sitter grammar│   │
 │  │  lib.rs      │    │  + Semantic tokens    │   │
-│  │  - register  │    │  + Inlay hints        │   │
-│  │    language  │    │  + Theme styles       │   │
-│  │  - start LSP │    └───────────┬───────────┘   │
-│  └──────┬───────┘                │ LSP Protocol  │
-│         │ spawn                  │ (stdin/stdout)│
+│  │  - register  │    │  + Theme styles       │   │
+│  │    language  │    └───────────┬───────────┘   │
+│  │  - start LSP │                │ LSP Protocol  │
+│  └──────┬───────┘                │ (stdin/stdout)│
+│         │ spawn                  │               │
 │         ▼                        ▼               │
 │  ┌─────────────────────────────────────────────┐ │
 │  │           noted-lsp (Rust binary)           │ │
@@ -50,14 +51,9 @@ and a companion theme.
 │  │  │ (preview)│ │ (broken    │ │ Actions   │  │ │
 │  │  │          │ │  links)    │ │           │  │ │
 │  │  ├──────────┤ ├────────────┤ ├───────────┤  │ │
-│  │  │ Rename   │ │ Doc Symbols│ │ Inlay     │  │ │
-│  │  │          │ │            │ │ Hints     │  │ │
+│  │  │ Rename   │ │ Doc Symbols│ │ Preview   │  │ │
+│  │  │          │ │            │ │ Server    │  │ │
 │  │  └──────────┘ └────────────┘ └───────────┘  │ │
-│  │                                             │ │
-│  │  ┌──────────────────────────────────────┐   │ │
-│  │  │ Preview Server (Phase 3)             │   │ │
-│  │  │ axum HTTP + tokio-tungstenite WS     │   │ │
-│  │  └──────────────────────────────────────┘   │ │
 │  └─────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────┘
 ```
@@ -66,27 +62,25 @@ and a companion theme.
 
 - **Extension:** Rust → `wasm32-wasip2`, `zed_extension_api` crate
 - **LSP:** Rust, `tower-lsp` + `tokio`, `pulldown-cmark`, `walkdir`, `regex`, `camino`
-- **Grammar:** JavaScript (`grammar.js`), Tree-sitter CLI
+- **Grammar:** JavaScript (`grammar.js`), Tree-sitter CLI — lives in `tree-sitter-noted` repo
 - **Theme:** JSON (Zed Theme Schema v0.2.0)
 
 ## Project Structure
 
 ```
 noted/
-├── extension.toml              # Zed extension manifest
+├── extension.toml              # Zed extension manifest (references tree-sitter-noted repo)
 ├── Cargo.toml                  # Workspace root + WASM extension crate
 ├── src/lib.rs                  # Extension entry: locate LSP binary via NOTED_LSP_PATH
 ├── languages/noted/
 │   ├── config.toml             # Language config (grammar = "noted")
-│   ├── highlights.scm          # Syntax highlighting queries (inactive without grammar)
-│   ├── injections.scm          # Code block language injection
+│   ├── highlights.scm          # Syntax highlighting queries
+│   ├── injections.scm          # Code block language injection (disabled — see below)
 │   ├── outline.scm             # Outline panel queries
 │   ├── folds.scm               # Code folding queries
 │   └── semantic_token_rules.json # Maps custom LSP token types to theme syntax keys
-├── grammars/noted/
-│   ├── grammar.js              # Tree-sitter grammar definition
-│   ├── src/                    # Generated C parser (parser.c, tree_sitter/parser.h)
-│   └── test/corpus/            # Tree-sitter test cases
+├── grammars/noted/             # ⚠ Managed by Zed — cloned from tree-sitter-noted repo
+│                               # NOT tracked in git (.gitignore)
 └── crates/noted-lsp/
     ├── Cargo.toml              # LSP server crate
     └── src/
@@ -96,13 +90,13 @@ noted/
         ├── definition.rs       # textDocument/definition (go-to wikilink target)
         ├── diagnostics.rs      # publishDiagnostics (broken wikilinks)
         ├── hover.rs            # textDocument/hover (note title + snippet + metadata)
-        ├── inlay_hints.rs      # textDocument/inlayHint (checkbox ✓/○ markers)
+        ├── inlay_hints.rs      # textDocument/inlayHint (checkbox ✓/○ — not shown in Zed)
         ├── preview.rs          # HTTP + WebSocket preview server (axum)
         ├── render.rs           # MD → HTML renderer (pulldown-cmark + wikilinks + callouts)
         ├── rename.rs           # prepareRename + rename wikilinks across vault
-        ├── semantic_tokens.rs  # textDocument/semanticTokens (headings, bold, italic)
+        ├── semantic_tokens.rs  # textDocument/semanticTokens (headings, bold, italic, nested)
         ├── symbols.rs          # textDocument/documentSymbol (heading tree)
-        ├── workspace_symbols.rs # workspace/symbol (search headings across vault)
+        ├── workspace_symbols.rs # workspace/symbol (not exposed in Zed UI)
         └── vault/
             ├── mod.rs          # Re-exports
             ├── index.rs        # VaultIndex, build_index, resolve_wikilink
@@ -127,12 +121,13 @@ noted/
 
 ### Tree-sitter
 
+- Grammar source lives in the **`tree-sitter-noted`** repo (not in this repo)
 - Every new grammar rule must be accompanied by a test in `test/corpus/`
-- Test format: standard tree-sitter test format
 - After changing `grammar.js` → run `tree-sitter generate` + `tree-sitter test`
-- Commit the generated `src/parser.c` and `src/tree_sitter/parser.h`
-- Re-enable grammar in `languages/noted/config.toml` and `extension.toml`
-  once the C files are committed
+  in the `tree-sitter-noted` repo
+- Push changes to `tree-sitter-noted`, then update `extension.toml` with the new
+  commit hash in the `rev` field
+- The `grammars/noted/` directory in this repo is managed by Zed (git-ignored)
 
 ### Commits
 
@@ -141,8 +136,6 @@ noted/
 - Examples: `feat(lsp): add wikilink completion`, `fix(grammar): handle empty callouts`
 
 ## Semantic Token Types (for LSP)
-
-Full implementation complete (Phase 2 step 2.1.1 + 2.1.2).
 
 The LSP uses **custom token type names** mapped to theme syntax keys via
 `languages/noted/semantic_token_rules.json`. This file tells Zed how to resolve
@@ -169,6 +162,15 @@ custom types to theme styles, with fallback chains for compatibility with non-No
 3. Theme's `syntax` section provides actual color/weight/style
 4. Fallback keys ensure basic styling even with non-Noted themes
 
+**Nested markup:** Formatting spans (bold, italic, strikethrough) recurse to handle
+nesting (e.g., code inside bold, italic inside heading). Formatting modifiers inherit
+from parent formatting context. Atomic elements (code, wikilinks, tags) use their own
+styling without inheriting parent modifiers. Heading gaps use `TYPE_HEADING`.
+
+**Position encoding:** All internal processing uses byte offsets (natural for Rust regex).
+Before emitting tokens, byte positions are converted to UTF-16 column offsets using
+`encode_utf16().count()` — required because LSP defaults to UTF-16 encoding.
+
 Delta caching: per-document flat u32 token cache; unchanged files return empty delta.
 Broken wikilinks flagged with `broken` modifier only after vault index is populated.
 
@@ -176,73 +178,9 @@ Broken wikilinks flagged with `broken` modifier only after vault index is popula
 `languages > Noted Markdown` (default is `"off"`, which disables semantic tokens).
 No `semantic_token_rules` in settings.json needed — the extension ships its own rules file.
 
-## Execution Plan Progress
-
-### Phase 0 (Scaffolding & Research) — COMPLETE ✓
-
-- [x] 0.1.1 `[HUMAN]` Install Rust, wasm target, tree-sitter-cli
-- [x] 0.1.2 `[AGENT]` Cargo workspace structure (extension + LSP crates)
-- [x] 0.1.3 `[AGENT]` Minimal `src/lib.rs` for Zed extension
-- [x] 0.1.4 `[HUMAN]` Install as dev extension in Zed
-- [x] 0.2.1 `[AGENT]` Hello world LSP (tower-lsp, hover)
-- [x] 0.2.2 `[AGENT]` Connect extension to LSP binary
-- [x] 0.2.3 `[AGENT]` Add diagnostic to LSP
-- [x] 0.3.1 `[AGENT]` Semantic tokens provider (prototype)
-- [x] 0.3.2 `[HUMAN]` Verify semantic token styling in Zed
-- [x] 0.3.3 `[AGENT]` Inlay hints provider (checkboxes)
-- [x] 0.3.4 `[HUMAN]` Checkpoint: Strategy A+B confirmed
-
-### Phase 1 (MVP) — COMPLETE ✓
-
-- [x] 1.1.1 `[AGENT]` Tree-sitter grammar (`grammar.js` + generated `src/parser.c`, 24/24 corpus tests passing)
-- [x] 1.1.2 `[AGENT]` Tree-sitter query files (highlights.scm, folds.scm, outline.scm, injections.scm)
-- [x] 1.1.3 `[AGENT]` Integrate grammar into extension (grammar enabled in config.toml + extension.toml, generated files in src/)
-- [x] 1.2.1 `[AGENT]` Vault indexer data structures + scanner + parser
-- [x] 1.2.2 `[AGENT]` build_index + resolve_wikilink
-- [x] 1.2.3 `[AGENT]` Integrate vault indexer into LSP
-- [x] 1.3.1 `[AGENT]` Completion (wikilinks, trigger: `[`)
-- [x] 1.4.1 `[AGENT]` Go-to-definition (wikilink target + anchor)
-- [x] 1.5.1 `[AGENT]` Diagnostics (broken wikilinks)
-- [x] 1.6.1 `[AGENT]` Hover (note title + snippet + tags + backlinks)
-- [x] 1.7.1 `[AGENT]` Document symbols (hierarchical heading tree)
-- [x] 1.8.1 `[AGENT]` Remove hello world code
-- [x] 1.9.1 `[AGENT]` Create test vault in `tests/fixtures/vault/` (10 notes, covers wikilinks, tags, callouts, math, tables, broken links, frontmatter)
-- [x] 1.9.2 `[HUMAN]` MVP integration test
-
-### Phase 2 (Visual) — COMPLETE ✓
-
-- [x] 2.1.1 `[AGENT]` Semantic tokens full (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter)
-- [x] 2.1.2 `[AGENT]` Semantic tokens delta (prefix/suffix diff; empty delta on unchanged)
-- [x] 2.2.1 `[AGENT]` Companion theme (noted-theme/ — Verdant Garden dark + light, `syntax` rules for standard token types)
-- [x] 2.2.2 `[HUMAN]` Visual verification of theme
-- [x] 2.3.1 `[AGENT]` Code actions (toggle checkbox, wrap selection, heading level, insert callout/table, change callout type)
-- [x] 2.4.1 `[AGENT]` Rename (prepareRename + rename wikilinks across files)
-- [x] 2.5.1 `[AGENT]` Workspace symbols (search headings across all files)
-- [x] 2.6.1 `[HUMAN]` Phase 2 integration test
-
-### Phase 3 (Preview) — COMPLETE ✓
-
-- [x] 3.1.1 `[AGENT]` HTTP server (axum, embedded in LSP)
-- [x] 3.1.2 `[AGENT]` Preview HTML + WebSocket client
-- [x] 3.2.1 `[AGENT]` MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math)
-- [x] 3.2.2 `[AGENT]` Preview CSS styles
-- [x] 3.3.1 `[AGENT]` Live sync (didChange → WebSocket → browser)
-- [x] 3.4.1 `[AGENT]` Preview command (code action + executeCommand)
-- [x] 3.4.2 `[HUMAN]` Phase 3 testing
-
-### Phase 4 (Publishing) — IN PROGRESS
-
-- [x] 4.1.1 `[AGENT]` CI workflow (.github/workflows/ci.yml)
-- [x] 4.1.2 `[AGENT]` Release workflow (.github/workflows/release.yml)
-- [x] 4.2.1 `[AGENT]` Auto-download LSP binary in extension
-- [x] 4.3.1 `[AGENT]` README.md (final)
-- [x] 4.3.2 `[AGENT]` CHANGELOG.md
-- [x] 4.3.3 `[AGENT]` Theme README.md
-- [ ] 4.4.1 `[HUMAN]` Publish to Zed extension registry
-
 ## LSP Capabilities Checklist
 
-### Phase 1 (MVP) — COMPLETE ✓
+### Working in Zed
 
 - [x] `initialize` / `initialized`
 - [x] `textDocument/didOpen` / `didChange` / `didClose` / `didSave`
@@ -251,26 +189,22 @@ No `semantic_token_rules` in settings.json needed — the extension ships its ow
 - [x] `textDocument/publishDiagnostics` (broken wikilinks → ERROR)
 - [x] `textDocument/hover` (note title + first paragraph + tags + backlink count)
 - [x] `textDocument/documentSymbol` (hierarchical heading tree)
-
-### Phase 2 (Visual) — COMPLETE ✓
-
-- [x] `textDocument/semanticTokens/full` (H1–H6, bold, italic, strikethrough, code, wikilink, tag, callout, checkbox, math, frontmatter — mapped to standard LSP types: keyword, variable, string, comment, operator)
-- [x] `textDocument/semanticTokens/full/delta` (prefix/suffix diff; empty delta on unchanged file)
-- [x] `textDocument/codeAction` (toggle checkbox, wrap selection, heading level, insert callout/table, change callout type)
-- [x] `textDocument/inlayHint` (checkboxes ✓/○)
+- [x] `textDocument/semanticTokens/full` (with nested markup + UTF-16 encoding)
+- [x] `textDocument/semanticTokens/full/delta` (prefix/suffix diff; empty on unchanged)
+- [x] `textDocument/codeAction` (toggle checkbox, wrap, heading level, callout, table)
 - [x] `textDocument/rename` + `prepareRename`
-- [x] `workspace/symbol`
-
-### Phase 3 (Preview) — COMPLETE ✓
-
-- [x] `workspace/executeCommand` (`noted.openPreview` — start preview server, return URL)
+- [x] `workspace/executeCommand` (`noted.openPreview`, `noted.showLinks`, `noted.showTag`)
 - [x] Preview HTTP server (axum, `127.0.0.1`, random port)
 - [x] WebSocket live sync (`didChange` → render → broadcast)
-- [x] MD → HTML renderer (pulldown-cmark + wikilinks + callouts + math + tables)
+
+### Implemented but not exposed in Zed
+
+- [x] `textDocument/inlayHint` (checkboxes ✓/○ — Zed doesn't render for extensions)
+- [x] `workspace/symbol` (heading search — Zed has no UI for this)
 
 ## Testing
 
-### Unit tests (`cargo test -p noted-lsp`) — 142 tests, all passing
+### Unit tests (`cargo test -p noted-lsp`) — 150 tests, all passing
 
 - `vault/parser.rs`: heading/wikilink/tag/frontmatter extraction (8 tests)
 - `vault/index.rs`: build_index, resolve_wikilink (7 tests)
@@ -281,14 +215,9 @@ No `semantic_token_rules` in settings.json needed — the extension ships its ow
 - `hover.rs`: snippet extraction, frontmatter skipping, hover output (14 tests)
 - `symbols.rs`: heading tree building, nesting, range correctness (10 tests)
 - `inlay_hints.rs`: checkbox hint positions (5 tests)
-- `semantic_tokens.rs`: token positions, delta encoding, broken wikilinks (23 tests)
-
-### Integration tests (planned)
-
-- Test vault created at `tests/fixtures/vault/` (10 notes)
-- Verify: vault index builds correctly
-- Verify: go-to-definition finds target files
-- Verify: rename updates all references
+- `semantic_tokens.rs`: token positions, delta encoding, nested markup, UTF-16 (30 tests)
+- `workspace_symbols.rs`: query filtering, symbol kinds (4 tests)
+- `render.rs`: (included in hover tests)
 
 ### Manual testing
 
@@ -326,14 +255,20 @@ vault/
 1. **Extension vs LSP confusion:** The extension (WASM) only registers the language and starts the LSP.
    All logic lives in the LSP binary. Do not put logic in `lib.rs`.
 
-2. **Tree-sitter grammar regeneration:** After changing `grammar.js`, run
-   `tree-sitter generate` + `tree-sitter test` in `grammars/noted/`.
-   Commit updated `src/parser.c` and `src/tree_sitter/parser.h`.
+2. **Tree-sitter grammar lives in `tree-sitter-noted` repo.** The `grammars/noted/`
+   directory in this repo is managed by Zed (cloned from `tree-sitter-noted` during
+   extension install). It is git-ignored. To change the grammar, edit `tree-sitter-noted`,
+   push, and update `extension.toml` with the new commit hash.
 
-3. **Tree-sitter conflict:** Zed already has a built-in `tree-sitter-markdown`.
+3. **Tree-sitter query compatibility (0.26+):** Do NOT use `field: _` (wildcard) on
+   fields that point to anonymous regex nodes (like `field("marker", /regex/)`). This
+   causes "Impossible pattern" errors. Either query named child nodes directly or change
+   the grammar to use named nodes for those fields.
+
+4. **Tree-sitter conflict:** Zed already has a built-in `tree-sitter-markdown`.
    Our grammar registers as a separate language (`Noted Markdown`), not overwriting standard Markdown.
 
-4. **Semantic tokens + Zed:** Custom LSP token type names require a
+5. **Semantic tokens + Zed:** Custom LSP token type names require a
    `semantic_token_rules.json` file in the language directory to map them to theme
    `syntax` keys. Without this file, custom names are silently ignored. The extension
    ships `languages/noted/semantic_token_rules.json` with fallback chains for
@@ -341,16 +276,25 @@ vault/
    under `languages > Noted Markdown` (default is `"off"`). No user-level
    `semantic_token_rules` needed.
 
-5. **LSP binary distribution:** Zed extensions cannot include binaries.
+6. **UTF-16 position encoding:** LSP defaults to UTF-16 column offsets. All token
+   positions and ranges must be converted from byte offsets using `encode_utf16().count()`.
+   Byte offsets cause misaligned highlighting on lines with multi-byte characters
+   (emoji, em dash, checkmarks, etc.).
+
+7. **LSP binary distribution:** Zed extensions cannot include binaries.
    Dev mode: set `NOTED_LSP_PATH` env var. Phase 4: auto-download from GitHub Releases.
 
-6. **wasm32-wasip2 limitations:** `std::env::var` does not work in the WASM sandbox.
+8. **wasm32-wasip2 limitations:** `std::env::var` does not work in the WASM sandbox.
    Use `worktree.shell_env()` to read environment variables (including `NOTED_LSP_PATH`).
 
-7. **VaultIndex on startup:** The index is built asynchronously after `initialize`.
+9. **VaultIndex on startup:** The index is built asynchronously after `initialize`.
    Features that depend on it (completion, hover, definition, diagnostics) return
    empty/None if called before indexing completes. Diagnostics are republished after
    indexing finishes.
+
+10. **Zed limitations for extensions:** Inlay hints and workspace symbols are implemented
+    in the LSP but Zed does not expose them for extension languages. Keep the code
+    (may work in future Zed versions) but do not advertise in README.
 
 ## References
 

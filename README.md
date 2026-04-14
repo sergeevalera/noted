@@ -14,12 +14,10 @@ For the best experience, enable semantic tokens and install the companion theme 
 | **Go-to-definition** | Cmd+click on a wikilink to jump to the target file |
 | **Broken link diagnostics** | Unresolved wikilinks are underlined as errors |
 | **Hover preview** | Hover over a wikilink to see title, snippet, tags, and backlink count. Hover over a `#tag` to see notes with that tag. Hover on line 1 of a note to see in/out link summary |
-| **Document symbols** | `Cmd+Shift+O` — hierarchical heading tree |
-| **Workspace symbols** | `Cmd+T` — search headings across all vault files |
+| **Document outline** | Heading tree in the Outline Panel with search and navigation |
 | **Rename** | F2 on a wikilink — renames the target across all files |
 | **Code actions** | `Cmd+.` — toggle checkboxes, wrap in bold/italic/code/wikilink, change heading level, insert callouts/tables, show all in/out links, show notes by tag |
 | **Semantic tokens** | Headings, bold, italic, strikethrough, wikilinks, tags, callouts, math, frontmatter |
-| **Inlay hints** | `[x]` shows `✓`, `[ ]` shows `○` |
 | **Live preview** | `Cmd+.` → "Open Preview" — browser preview with live WebSocket sync |
 | **Vault indexer** | Scans on open, reindexes on save |
 | **Tree-sitter grammar** | Wikilinks, callouts, tags, embeds, checkboxes |
@@ -117,11 +115,6 @@ Open any directory with `.md` files as your workspace. The vault is indexed on s
 2. Copy the URL from the notification
 3. Open in browser — updates live as you type
 
-### Outline
-
-- `Cmd+Shift+O` — document symbols (heading tree)
-- `Cmd+T` — workspace symbols (search headings across all files)
-
 ---
 
 ## Development
@@ -137,11 +130,10 @@ noted/
 │   ├── highlights.scm                # Tree-sitter highlight queries
 │   ├── injections.scm                # Fenced code block language injection
 │   ├── outline.scm                   # Outline panel queries
-│   └── folds.scm                     # Code folding queries
-├── grammars/noted/                   # Custom Tree-sitter grammar
-│   ├── grammar.js                    # Grammar rules
-│   ├── src/                          # Generated C parser
-│   └── test/corpus/                  # Grammar test cases (24 tests)
+│   ├── folds.scm                     # Code folding queries
+│   └── semantic_token_rules.json     # LSP token → theme syntax key mapping
+├── grammars/noted/                   # Tree-sitter grammar (cloned by Zed from
+│                                     #   github.com/sergeevalera/tree-sitter-noted)
 └── crates/noted-lsp/                 # LSP server (native binary)
     └── src/
         ├── main.rs                   # Server state, handler dispatch
@@ -166,7 +158,7 @@ noted/
 ### Build & test
 
 ```bash
-cargo test -p noted-lsp              # 142 unit tests
+cargo test -p noted-lsp              # 150 unit tests
 cargo build --release -p noted-lsp   # Build release binary
 cargo clippy -p noted-lsp -- -D warnings
 cargo check -p noted --target wasm32-wasip2  # Check WASM extension
@@ -174,15 +166,18 @@ cargo check -p noted --target wasm32-wasip2  # Check WASM extension
 
 ### Tree-sitter grammar
 
-After modifying `grammar.js`:
+The grammar lives in a separate repo: [tree-sitter-noted](https://github.com/sergeevalera/tree-sitter-noted). Zed clones it automatically during extension installation.
+
+To modify the grammar, edit `grammar.js` in that repo, then:
 
 ```bash
-cd grammars/noted
+cd ../tree-sitter-noted
 tree-sitter generate
 tree-sitter test    # 24 corpus tests
+git push
 ```
 
-Commit the updated `src/parser.c` and `src/tree_sitter/parser.h`.
+Then update `extension.toml` in this repo with the new commit hash.
 
 ---
 

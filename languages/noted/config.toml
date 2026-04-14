@@ -1,4 +1,5 @@
 name = "Noted Markdown"
+grammar = "noted"
 path_suffixes = ["md", "markdown"]
 line_comments = []
 word_characters = ["-"]

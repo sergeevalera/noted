@@ -22,8 +22,9 @@ extension.wasm
 # npm packages (tree-sitter-cli installed locally in grammar directory)
 node_modules/
 
-# tree-sitter build output
-grammars/*/build/
+# Tree-sitter grammars — Zed clones these from the remote repo during extension install
+grammars/noted/
+grammars/*.wasm
 
 # IDE
 .idea/

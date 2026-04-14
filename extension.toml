@@ -6,6 +6,10 @@ authors = ["Valery Sergeeva <valeriia.sergeeva@gmail.com>"]
 description = "Enhanced Markdown editing for knowledge bases — wikilinks, callouts, tags, and smart navigation"
 repository = "https://github.com/sergeevalera/noted"
 
+[grammars.noted]
+repository = "https://github.com/sergeevalera/tree-sitter-noted"
+rev = "66d11f2baa019ea78891c2198137aba62ef3d867"
+
 [language_servers.noted-lsp]
 name = "Noted LSP"
 languages = ["Noted Markdown"]

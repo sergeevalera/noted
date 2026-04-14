@@ -1,6 +1,3 @@
-; Inject the language declared after the opening fence into code block bodies.
-; e.g. ```rust → highlight as Rust
-(fenced_code_block
-  fence_start: _ @injection.language
-  code: _ @injection.content
-  (#set! injection.include-children))
+; Language injection for fenced code blocks is not supported yet.
+; The grammar uses anonymous regex nodes for fence_start and code fields,
+; which cannot be queried with tree-sitter 0.26+.

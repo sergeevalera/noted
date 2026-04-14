@@ -36,7 +36,7 @@ fn hint(line: u32, character: u32, label: &str) -> InlayHint {
     InlayHint {
         position: Position { line, character },
         label: InlayHintLabel::String(label.to_string()),
-        kind: Some(InlayHintKind::PARAMETER),
+        kind: None,
         text_edits: None,
         tooltip: None,
         padding_left: None,

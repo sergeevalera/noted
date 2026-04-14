@@ -32,6 +32,35 @@ pub const MOD_MATH: u32 = 1 << 17;
 pub const MOD_FRONTMATTER: u32 = 1 << 18;
 pub const MOD_MARKUP_PUNCTUATION: u32 = 1 << 19;
 
+/// Compiled regex patterns for inline Markdown scanning.
+struct InlineScanner {
+    bold_italic_re: Regex,
+    bold_re: Regex,
+    strike_re: Regex,
+    italic_re: Regex,
+    code_re: Regex,
+    wikilink_re: Regex,
+    link_re: Regex,
+    math_re: Regex,
+    tag_re: Regex,
+}
+
+impl InlineScanner {
+    fn new() -> Self {
+        Self {
+            bold_italic_re: Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap(),
+            bold_re: Regex::new(r"\*\*(.+?)\*\*").unwrap(),
+            strike_re: Regex::new(r"~~(.+?)~~").unwrap(),
+            italic_re: Regex::new(r"\*([^*\n]+?)\*").unwrap(),
+            code_re: Regex::new(r"`([^`\n]+)`").unwrap(),
+            wikilink_re: Regex::new(r"\[\[([^\]\n|#]+?)(?:[#|][^\]\n]*)?\]\]").unwrap(),
+            link_re: Regex::new(r"\[([^\]\n]+)\]\(([^)\n]+)\)").unwrap(),
+            math_re: Regex::new(r"\$([^$\n]+)\$").unwrap(),
+            tag_re: Regex::new(r"#[A-Za-z][\w\-/]*").unwrap(),
+        }
+    }
+}
+
 /// The `SemanticTokensLegend` advertised in `initialize`.
 /// Must stay in sync with the `TYPE_*` / `MOD_*` constants above.
 pub fn legend() -> SemanticTokensLegend {
@@ -72,16 +101,7 @@ pub fn legend() -> SemanticTokensLegend {
 /// `index` is used to distinguish resolved vs broken wikilinks.
 /// Returns tokens sorted by position and LSP delta-encoded.
 pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticToken> {
-    let bold_italic_re = Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap();
-    let bold_re = Regex::new(r"\*\*(.+?)\*\*").unwrap();
-    let strike_re = Regex::new(r"~~(.+?)~~").unwrap();
-    let italic_re = Regex::new(r"\*([^*\n]+?)\*").unwrap();
-    let code_re = Regex::new(r"`([^`\n]+)`").unwrap();
-    // [[target]], [[target|alias]], [[target#anchor]], [[target#anchor|alias]]
-    let wikilink_re = Regex::new(r"\[\[([^\]\n|#]+?)(?:[#|][^\]\n]*)?\]\]").unwrap();
-    let link_re = Regex::new(r"\[([^\]\n]+)\]\(([^)\n]+)\)").unwrap();
-    let math_re = Regex::new(r"\$([^$\n]+)\$").unwrap();
-    let tag_re = Regex::new(r"#[A-Za-z][\w\-/]*").unwrap();
+    let scanner = InlineScanner::new();
     let callout_re = Regex::new(r"^> \[!([A-Za-z][A-Za-z0-9]*)\]").unwrap();
     let checkbox_done_re = Regex::new(r"^[ \t]*(?:[-*+]|\d+[.)]) \[(?:x|X)\] ").unwrap();
     let checkbox_todo_re = Regex::new(r"^[ \t]*(?:[-*+]|\d+[.)]) \[ \] ").unwrap();
@@ -98,7 +118,6 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
         if len == 0 {
             continue;
         }
-        // First and last lines are `---` separators; everything else is YAML content
         if i == 0 || i + 1 == frontmatter_end {
             raw.push((ln, 0, len, TYPE_PUNCTUATION, MOD_MARKUP_PUNCTUATION));
         } else {
@@ -131,15 +150,21 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
                 TYPE_PUNCTUATION,
                 MOD_MARKUP_PUNCTUATION,
             ));
-            let content_len = len.saturating_sub(text_start) as u32;
+            let content_len = len.saturating_sub(text_start);
             if content_len > 0 {
-                raw.push((
+                let mut heading_covered = vec![false; content_len];
+                tokenize_inline_range(
+                    &scanner,
                     ln,
-                    text_start as u32,
-                    content_len,
-                    TYPE_HEADING,
-                    heading_mod(hash_len),
-                ));
+                    line,
+                    text_start,
+                    len,
+                    Some((TYPE_HEADING, heading_mod(hash_len))),
+                    &mut heading_covered,
+                    &mut raw,
+                    index,
+                    0,
+                );
             }
             continue;
         }
@@ -175,296 +200,434 @@ pub fn compute_semantic_tokens(text: &str, index: &VaultIndex) -> Vec<SemanticTo
             }
         }
 
-        // ── Bold+Italic ***content*** ──────────────────────────────────────────
-        for cap in bold_italic_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                3,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_BOLD | MOD_ITALIC,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                3,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Bold **content** ─────────────────────────────────────────────────
-        for cap in bold_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_BOLD,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Strikethrough ~~content~~ ─────────────────────────────────────────
-        for cap in strike_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_STRIKETHROUGH,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Italic *content* ─────────────────────────────────────────────────
-        for cap in italic_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_ITALIC,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Inline code `content` ─────────────────────────────────────────────
-        for cap in code_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_CODE,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Wikilinks [[target]] ─────────────────────────────────────────────
-        for cap in wikilink_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let target = cap.get(1).unwrap().as_str().trim();
-            covered[full.start()..full.end()].fill(true);
-            // Mark broken only when the index is populated (avoids false positives on startup)
-            let wikilink_mod =
-                if !index.notes.is_empty() && resolve_wikilink(index, target).is_none() {
-                    MOD_WIKILINK | MOD_BROKEN
-                } else {
-                    MOD_WIKILINK
-                };
-            // [[ opening punctuation
-            raw.push((
-                ln,
-                full.start() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            // inner content
-            let inner_start = full.start() + 2;
-            let inner_end = full.end() - 2;
-            if inner_end > inner_start {
-                raw.push((
-                    ln,
-                    inner_start as u32,
-                    (inner_end - inner_start) as u32,
-                    TYPE_MARKUP,
-                    wikilink_mod,
-                ));
-            }
-            // ]] closing punctuation
-            raw.push((
-                ln,
-                (full.end() - 2) as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Regular links [text](url) ─────────────────────────────────────────
-        for cap in link_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let text_m = cap.get(1).unwrap();
-            let url_m = cap.get(2).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                text_m.start() as u32,
-                text_m.len() as u32,
-                TYPE_STRING,
-                MOD_LINK,
-            ));
-            raw.push((
-                ln,
-                text_m.end() as u32,
-                2,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                url_m.start() as u32,
-                url_m.len() as u32,
-                TYPE_STRING,
-                MOD_LINK,
-            ));
-            raw.push((
-                ln,
-                url_m.end() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Math $content$ ───────────────────────────────────────────────────
-        for cap in math_re.captures_iter(line) {
-            let full = cap.get(0).unwrap();
-            if covered[full.start()] {
-                continue;
-            }
-            let content = cap.get(1).unwrap();
-            covered[full.start()..full.end()].fill(true);
-            raw.push((
-                ln,
-                full.start() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-            raw.push((
-                ln,
-                content.start() as u32,
-                content.len() as u32,
-                TYPE_MARKUP,
-                MOD_MATH,
-            ));
-            raw.push((
-                ln,
-                content.end() as u32,
-                1,
-                TYPE_PUNCTUATION,
-                MOD_MARKUP_PUNCTUATION,
-            ));
-        }
-
-        // ── Tags #word ────────────────────────────────────────────────────────
-        for m in tag_re.find_iter(line) {
-            if covered[m.start()] {
-                continue;
-            }
-            covered[m.start()..m.end()].fill(true);
-            raw.push((ln, m.start() as u32, m.len() as u32, TYPE_MARKUP, MOD_TAG));
-        }
+        // ── Inline content (with nesting support) ────────────────────────────
+        tokenize_inline_range(
+            &scanner,
+            ln,
+            line,
+            0,
+            len,
+            None,
+            &mut covered,
+            &mut raw,
+            index,
+            0,
+        );
     }
+
+    // Convert byte offsets to UTF-16 column offsets (LSP default encoding)
+    let mut raw: Vec<_> = raw
+        .into_iter()
+        .map(|(ln, byte_col, byte_len, ty, mods)| {
+            let line_str = lines[ln as usize];
+            let col = line_str[..byte_col as usize].encode_utf16().count() as u32;
+            let len = line_str[byte_col as usize..(byte_col + byte_len) as usize]
+                .encode_utf16()
+                .count() as u32;
+            (ln, col, len, ty, mods)
+        })
+        .collect();
 
     // Sort by (line, start_col) then delta-encode
     raw.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
     encode_delta(raw)
+}
+
+/// Tokenize inline Markdown content in `line[start..end]`, with nesting support.
+///
+/// Formatting spans (bold, italic, strikethrough) recurse to handle nested elements.
+/// Atomic elements (code, wikilinks, links, math, tags) are leaf-level.
+/// Uncovered gaps receive `gap` tokens (e.g., heading text or bold text).
+///
+/// `covered` has length `end - start` and tracks which bytes are already claimed.
+/// `depth` prevents runaway recursion (max 3 levels).
+#[allow(clippy::too_many_arguments)]
+fn tokenize_inline_range(
+    scanner: &InlineScanner,
+    ln: u32,
+    line: &str,
+    start: usize,
+    end: usize,
+    gap: Option<(u32, u32)>,
+    covered: &mut [bool],
+    raw: &mut Vec<(u32, u32, u32, u32, u32)>,
+    index: &VaultIndex,
+    depth: u32,
+) {
+    if start >= end {
+        return;
+    }
+    if depth > 3 {
+        if let Some((gt, gm)) = gap {
+            raw.push((ln, start as u32, (end - start) as u32, gt, gm));
+        }
+        return;
+    }
+
+    let content = &line[start..end];
+
+    // Inherit formatting modifiers from parent formatting context only
+    // (not from heading context — heading gaps use TYPE_HEADING).
+    let fmt_mods = match gap {
+        Some((TYPE_MARKUP, mods)) => mods,
+        _ => 0,
+    };
+
+    // ── Formatting spans (recurse into content) ──────────────────────────────
+
+    // Bold+italic ***...***
+    for cap in scanner.bold_italic_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            3,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            3,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        let inner_mods = fmt_mods | MOD_BOLD | MOD_ITALIC;
+        let mut inner_covered = vec![false; inner.end() - inner.start()];
+        tokenize_inline_range(
+            scanner,
+            ln,
+            line,
+            start + inner.start(),
+            start + inner.end(),
+            Some((TYPE_MARKUP, inner_mods)),
+            &mut inner_covered,
+            raw,
+            index,
+            depth + 1,
+        );
+    }
+
+    // Bold **...**
+    for cap in scanner.bold_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        let inner_mods = fmt_mods | MOD_BOLD;
+        let mut inner_covered = vec![false; inner.end() - inner.start()];
+        tokenize_inline_range(
+            scanner,
+            ln,
+            line,
+            start + inner.start(),
+            start + inner.end(),
+            Some((TYPE_MARKUP, inner_mods)),
+            &mut inner_covered,
+            raw,
+            index,
+            depth + 1,
+        );
+    }
+
+    // Strikethrough ~~...~~
+    for cap in scanner.strike_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        let inner_mods = fmt_mods | MOD_STRIKETHROUGH;
+        let mut inner_covered = vec![false; inner.end() - inner.start()];
+        tokenize_inline_range(
+            scanner,
+            ln,
+            line,
+            start + inner.start(),
+            start + inner.end(),
+            Some((TYPE_MARKUP, inner_mods)),
+            &mut inner_covered,
+            raw,
+            index,
+            depth + 1,
+        );
+    }
+
+    // Italic *...*
+    for cap in scanner.italic_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        let inner_mods = fmt_mods | MOD_ITALIC;
+        let mut inner_covered = vec![false; inner.end() - inner.start()];
+        tokenize_inline_range(
+            scanner,
+            ln,
+            line,
+            start + inner.start(),
+            start + inner.end(),
+            Some((TYPE_MARKUP, inner_mods)),
+            &mut inner_covered,
+            raw,
+            index,
+            depth + 1,
+        );
+    }
+
+    // ── Atomic elements (no recursion) ───────────────────────────────────────
+
+    // Inline code `...`
+    for cap in scanner.code_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.start()) as u32,
+            inner.len() as u32,
+            TYPE_MARKUP,
+            MOD_CODE,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+    }
+
+    // Wikilinks [[target]]
+    for cap in scanner.wikilink_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let target = cap.get(1).unwrap().as_str().trim();
+        covered[full.start()..full.end()].fill(true);
+        let wikilink_mod = if !index.notes.is_empty() && resolve_wikilink(index, target).is_none() {
+            MOD_WIKILINK | MOD_BROKEN
+        } else {
+            MOD_WIKILINK
+        };
+        // [[ opening
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        // inner content
+        let inner_start = full.start() + 2;
+        let inner_end = full.end() - 2;
+        if inner_end > inner_start {
+            raw.push((
+                ln,
+                (start + inner_start) as u32,
+                (inner_end - inner_start) as u32,
+                TYPE_MARKUP,
+                wikilink_mod,
+            ));
+        }
+        // ]] closing
+        raw.push((
+            ln,
+            (start + full.end() - 2) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+    }
+
+    // Regular links [text](url)
+    for cap in scanner.link_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let text_m = cap.get(1).unwrap();
+        let url_m = cap.get(2).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        )); // [
+        raw.push((
+            ln,
+            (start + text_m.start()) as u32,
+            text_m.len() as u32,
+            TYPE_STRING,
+            MOD_LINK,
+        ));
+        raw.push((
+            ln,
+            (start + text_m.end()) as u32,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        )); // ](
+        raw.push((
+            ln,
+            (start + url_m.start()) as u32,
+            url_m.len() as u32,
+            TYPE_STRING,
+            MOD_LINK,
+        ));
+        raw.push((
+            ln,
+            (start + url_m.end()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        )); // )
+    }
+
+    // Math $...$
+    for cap in scanner.math_re.captures_iter(content) {
+        let full = cap.get(0).unwrap();
+        if covered[full.start()] {
+            continue;
+        }
+        let inner = cap.get(1).unwrap();
+        covered[full.start()..full.end()].fill(true);
+        raw.push((
+            ln,
+            (start + full.start()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+        raw.push((
+            ln,
+            (start + inner.start()) as u32,
+            inner.len() as u32,
+            TYPE_MARKUP,
+            MOD_MATH,
+        ));
+        raw.push((
+            ln,
+            (start + inner.end()) as u32,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION,
+        ));
+    }
+
+    // Tags #word
+    for m in scanner.tag_re.find_iter(content) {
+        if covered[m.start()] {
+            continue;
+        }
+        covered[m.start()..m.end()].fill(true);
+        raw.push((
+            ln,
+            (start + m.start()) as u32,
+            m.len() as u32,
+            TYPE_MARKUP,
+            MOD_TAG,
+        ));
+    }
+
+    // ── Gap tokens for uncovered ranges ──────────────────────────────────────
+    if let Some((gt, gm)) = gap {
+        emit_gaps(ln, start, covered, gt, gm, raw);
+    }
+}
+
+/// Emit tokens for uncovered byte ranges within a content span.
+fn emit_gaps(
+    ln: u32,
+    abs_start: usize,
+    covered: &[bool],
+    gap_type: u32,
+    gap_mods: u32,
+    raw: &mut Vec<(u32, u32, u32, u32, u32)>,
+) {
+    let mut i = 0;
+    while i < covered.len() {
+        if !covered[i] {
+            let gap_start = i;
+            while i < covered.len() && !covered[i] {
+                i += 1;
+            }
+            raw.push((
+                ln,
+                (abs_start + gap_start) as u32,
+                (i - gap_start) as u32,
+                gap_type,
+                gap_mods,
+            ));
+        } else {
+            i += 1;
+        }
+    }
 }
 
 // ── Delta helpers ─────────────────────────────────────────────────────────────
@@ -1030,5 +1193,276 @@ mod tests {
         let tokens = decode(&compute_semantic_tokens("**text**\n", &idx));
         assert!(!tokens.iter().any(|t| t.4 & MOD_ITALIC != 0));
         assert!(tokens.iter().any(|t| t.4 & MOD_BOLD != 0));
+    }
+
+    // ── Nesting tests ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_heading_with_bold() {
+        let idx = empty_index();
+        // "## Heading **bold** text"
+        //  01234567890123456789012345
+        let tokens = decode(&compute_semantic_tokens("## Heading **bold** text\n", &idx));
+        // ## at 0
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "Heading " at 3 (8 chars) → heading+h2 (gap)
+        assert!(has(&tokens, 0, 3, 8, TYPE_HEADING, MOD_H2));
+        // ** at 11
+        assert!(has(
+            &tokens,
+            0,
+            11,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "bold" at 13 (4 chars) → markup+bold
+        assert!(has(&tokens, 0, 13, 4, TYPE_MARKUP, MOD_BOLD));
+        // ** at 17
+        assert!(has(
+            &tokens,
+            0,
+            17,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // " text" at 19 (5 chars) → heading+h2 (gap)
+        assert!(has(&tokens, 0, 19, 5, TYPE_HEADING, MOD_H2));
+    }
+
+    #[test]
+    fn test_heading_with_inline_code() {
+        let idx = empty_index();
+        // "# Title `code` end"
+        //  0123456789012345678
+        let tokens = decode(&compute_semantic_tokens("# Title `code` end\n", &idx));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "Title " at 2 (6 chars) → heading+h1
+        assert!(has(&tokens, 0, 2, 6, TYPE_HEADING, MOD_H1));
+        // ` at 8
+        assert!(has(
+            &tokens,
+            0,
+            8,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "code" at 9 (4 chars) → markup+code
+        assert!(has(&tokens, 0, 9, 4, TYPE_MARKUP, MOD_CODE));
+        // ` at 13
+        assert!(has(
+            &tokens,
+            0,
+            13,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // " end" at 14 (4 chars) → heading+h1
+        assert!(has(&tokens, 0, 14, 4, TYPE_HEADING, MOD_H1));
+    }
+
+    #[test]
+    fn test_heading_with_wikilink() {
+        let idx = index_with_note("/vault/setup.md", "# Setup\n");
+        // "## See [[setup]]"
+        //  01234567890123456
+        let tokens = decode(&compute_semantic_tokens("## See [[setup]]\n", &idx));
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "See " at 3 (4 chars) → heading+h2
+        assert!(has(&tokens, 0, 3, 4, TYPE_HEADING, MOD_H2));
+        // [[ at 7
+        assert!(has(
+            &tokens,
+            0,
+            7,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "setup" at 9 (5 chars) → markup+wikilink
+        assert!(has(&tokens, 0, 9, 5, TYPE_MARKUP, MOD_WIKILINK));
+        // ]] at 14
+        assert!(has(
+            &tokens,
+            0,
+            14,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+    }
+
+    #[test]
+    fn test_bold_with_code_inside() {
+        let idx = empty_index();
+        // "**bold `code` more**"
+        //  01234567890123456789
+        let tokens = decode(&compute_semantic_tokens("**bold `code` more**\n", &idx));
+        // ** at 0
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "bold " at 2 (5 chars) → markup+bold (gap)
+        assert!(has(&tokens, 0, 2, 5, TYPE_MARKUP, MOD_BOLD));
+        // ` at 7
+        assert!(has(
+            &tokens,
+            0,
+            7,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "code" at 8 (4 chars) → markup+code
+        assert!(has(&tokens, 0, 8, 4, TYPE_MARKUP, MOD_CODE));
+        // ` at 12
+        assert!(has(
+            &tokens,
+            0,
+            12,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // " more" at 13 (5 chars) → markup+bold (gap)
+        assert!(has(&tokens, 0, 13, 5, TYPE_MARKUP, MOD_BOLD));
+        // ** at 18
+        assert!(has(
+            &tokens,
+            0,
+            18,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+    }
+
+    #[test]
+    fn test_code_with_multibyte_char() {
+        let idx = empty_index();
+        // "shows `✓` end" — ✓ is 3 bytes in UTF-8, 1 code unit in UTF-16
+        // UTF-16 positions: ` at 6, ✓ at 7 (len 1), ` at 8
+        let tokens = decode(&compute_semantic_tokens("shows `✓` end\n", &idx));
+        assert!(has(
+            &tokens,
+            0,
+            6,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        assert!(has(&tokens, 0, 7, 1, TYPE_MARKUP, MOD_CODE)); // len 1, not 3
+        assert!(has(
+            &tokens,
+            0,
+            8,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+    }
+
+    #[test]
+    fn test_bold_after_multibyte_char() {
+        let idx = empty_index();
+        // "— **bold** end" — em dash is 3 bytes UTF-8, 1 UTF-16
+        // UTF-16: — at 0, space at 1, ** at 2, bold at 4, ** at 8
+        let tokens = decode(&compute_semantic_tokens("— **bold** end\n", &idx));
+        assert!(has(
+            &tokens,
+            0,
+            2,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        assert!(has(&tokens, 0, 4, 4, TYPE_MARKUP, MOD_BOLD));
+        assert!(has(
+            &tokens,
+            0,
+            8,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+    }
+
+    #[test]
+    fn test_italic_inside_bold() {
+        let idx = empty_index();
+        // "**bold *italic* text**"
+        //  0123456789012345678901
+        let tokens = decode(&compute_semantic_tokens("**bold *italic* text**\n", &idx));
+        // ** at 0
+        assert!(has(
+            &tokens,
+            0,
+            0,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "bold " at 2 (5 chars) → markup+bold (gap)
+        assert!(has(&tokens, 0, 2, 5, TYPE_MARKUP, MOD_BOLD));
+        // * at 7
+        assert!(has(
+            &tokens,
+            0,
+            7,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // "italic" at 8 (6 chars) → markup+bold+italic (inherited)
+        assert!(has(&tokens, 0, 8, 6, TYPE_MARKUP, MOD_BOLD | MOD_ITALIC));
+        // * at 14
+        assert!(has(
+            &tokens,
+            0,
+            14,
+            1,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
+        // " text" at 15 (5 chars) → markup+bold (gap)
+        assert!(has(&tokens, 0, 15, 5, TYPE_MARKUP, MOD_BOLD));
+        // ** at 20
+        assert!(has(
+            &tokens,
+            0,
+            20,
+            2,
+            TYPE_PUNCTUATION,
+            MOD_MARKUP_PUNCTUATION
+        ));
     }
 }
