@@ -1,7 +1,3 @@
----
-title: Noted Showcase
-tags: [demo, features]
----
 # Noted Showcase
 ## Inline Formatting
 This is **bold text** and *italic text* and ~~strikethrough~~.
