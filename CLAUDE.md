@@ -298,7 +298,6 @@ vault/
 
 ## References
 
-- [Project Specification](./zed-md-wysiwyg-spec.md) (full version)
 - [Zed Extension API docs](https://zed.dev/docs/extensions)
 - [Zed Extension API crate](https://crates.io/crates/zed_extension_api)
 - [tower-lsp docs](https://docs.rs/tower-lsp)
