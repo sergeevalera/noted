@@ -71,10 +71,14 @@ jobs:
     name: Tree-sitter Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Clone tree-sitter-noted
+        uses: actions/checkout@v4
+        with:
+          repository: sergeevalera/tree-sitter-noted
+          path: tree-sitter-noted
 
       - name: Install tree-sitter CLI
-        run: cargo install tree-sitter-cli --version 0.22.6
+        run: cargo install tree-sitter-cli
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -82,8 +86,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-ts-${{ hashFiles('grammars/noted/grammar.js') }}
+          key: ${{ runner.os }}-ts-cli
 
       - name: Test grammar
-        working-directory: grammars/noted
+        working-directory: tree-sitter-noted
         run: tree-sitter test
