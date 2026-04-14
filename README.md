@@ -4,6 +4,10 @@ A language server for Obsidian-flavored Markdown in Zed. Handles wikilink resolu
 
 For the best experience, enable semantic tokens and install the companion theme — see [Setup](#setup).
 
+![Noted Verdant Garden Dark — semantic tokens, outline, tag hover](screenshotes/dark_with_tag.png)
+
+![Noted Verdant Garden Light — wikilink hover preview](screenshotes/light_with_hover.png)
+
 ---
 
 ## Features
